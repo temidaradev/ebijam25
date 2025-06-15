@@ -21,16 +21,40 @@ var FontFaceS text.Face
 var FontFaceM text.Face
 
 var (
-	BgZ1         = esset.GetAsset(assets, "images/start/bg_1 (z -1).png")
-	BgZ2         = esset.GetAsset(assets, "images/start/bg_2 (z -2).png")
-	BgZ3         = esset.GetAsset(assets, "images/start/bg_3 (z -3).png")
-	MountainsZ4  = esset.GetAsset(assets, "images/start/mtn (z -4).png")
-	GradientZ6   = esset.GetAsset(assets, "images/start/Gradient (z -6).png")
-	MiddleGround = esset.GetAsset(assets, "images/start/middleground (z 0).png")
-	Foreground   = esset.GetAsset(assets, "images/start/middleplus (z 1).png")
-
 	// Load the actual adventurer sprite sheet
 	CharacterSpritesheet = esset.GetAsset(assets, "images/sprites/adventurer-Sheet.png")
+
+	// Desert background layers (back to front, z-depth from negative to positive)
+	DesertBackground1 = esset.GetAsset(assets, "images/backgrounds/desert/background1.png") // Far background (z -6)
+	DesertBackground2 = esset.GetAsset(assets, "images/backgrounds/desert/background2.png") // Mid background (z -4)
+	DesertBackground3 = esset.GetAsset(assets, "images/backgrounds/desert/background3.png") // Near background (z -2)
+
+	// Desert clouds (various depths for parallax effect)
+	DesertCloud1 = esset.GetAsset(assets, "images/backgrounds/desert/cloud1.png") // Far clouds (z -5)
+	DesertCloud2 = esset.GetAsset(assets, "images/backgrounds/desert/cloud2.png") // Far clouds (z -5)
+	DesertCloud3 = esset.GetAsset(assets, "images/backgrounds/desert/cloud3.png") // Mid clouds (z -3)
+	DesertCloud4 = esset.GetAsset(assets, "images/backgrounds/desert/cloud4.png") // Mid clouds (z -3)
+	DesertCloud5 = esset.GetAsset(assets, "images/backgrounds/desert/cloud5.png") // Near clouds (z -1)
+	DesertCloud6 = esset.GetAsset(assets, "images/backgrounds/desert/cloud6.png") // Near clouds (z -1)
+	DesertCloud7 = esset.GetAsset(assets, "images/backgrounds/desert/cloud7.png") // Foreground clouds (z 0)
+	DesertCloud8 = esset.GetAsset(assets, "images/backgrounds/desert/cloud8.png") // Foreground clouds (z 0)
+
+	// Forest background layers (back to front)
+	ForestSky      = esset.GetAsset(assets, "images/backgrounds/forest/sky.png")       // Far background (z -6)
+	ForestSkyCloud = esset.GetAsset(assets, "images/backgrounds/forest/sky_cloud.png") // Sky with clouds (z -5)
+	ForestMountain = esset.GetAsset(assets, "images/backgrounds/forest/mountain2.png") // Mountains (z -4)
+	ForestCloud    = esset.GetAsset(assets, "images/backgrounds/forest/cloud.png")     // Mid clouds (z -3)
+	ForestPine1    = esset.GetAsset(assets, "images/backgrounds/forest/pine1.png")     // Far trees (z -2)
+	ForestPine2    = esset.GetAsset(assets, "images/backgrounds/forest/pine2.png")     // Near trees (z -1)
+
+	// Mountains background layers (back to front)
+	MountainsSky         = esset.GetAsset(assets, "images/backgrounds/mountains/sky.png")               // Far background (z -6)
+	MountainsCloudsBg    = esset.GetAsset(assets, "images/backgrounds/mountains/clouds_bg.png")         // Background clouds (z -5)
+	MountainsGlacial     = esset.GetAsset(assets, "images/backgrounds/mountains/glacial_mountains.png") // Mountains (z -4)
+	MountainsCloudsMg3   = esset.GetAsset(assets, "images/backgrounds/mountains/clouds_mg_3.png")       // Mid-ground clouds 3 (z -3)
+	MountainsCloudsMg2   = esset.GetAsset(assets, "images/backgrounds/mountains/clouds_mg_2.png")       // Mid-ground clouds 2 (z -2)
+	MountainsCloudsMg1   = esset.GetAsset(assets, "images/backgrounds/mountains/clouds_mg_1.png")       // Mid-ground clouds 1 (z -1)
+	MountainsCloudLonely = esset.GetAsset(assets, "images/backgrounds/mountains/cloud_lonely.png")      // Foreground cloud (z 0)
 )
 
 // Initialize simple character animations
@@ -39,11 +63,11 @@ func InitCharacterAnimations() *SimpleAnimationManager {
 	animManager := NewSimpleAnimationManager(CharacterSpritesheet, 50, 37)
 
 	// Add animations with faster, more responsive timings
-	animManager.AddAnimation("idle", 0, 3, 0.12, true)     // idle: frames 0-3, faster idle
-	animManager.AddAnimation("run", 8, 13, 0.06, true)     // run: frames 8-13, much faster run
-	animManager.AddAnimation("jump", 14, 17, 0.08, false)  // jump: frames 14-17, snappy jump
-	animManager.AddAnimation("fall", 22, 23, 0.1, true)    // fall: frames 22-23, faster fall
-	animManager.AddAnimation("walk", 155, 160, 0.18, true) // walk: frames 155-160, slower walk for natural pace
+	animManager.AddAnimation("idle", 0, 3, 0.12, true)    // idle: frames 0-3, faster idle
+	animManager.AddAnimation("run", 8, 13, 0.06, true)    // run: frames 8-13, much faster run
+	animManager.AddAnimation("jump", 14, 17, 0.08, false) // jump: frames 14-17, snappy jump
+	animManager.AddAnimation("fall", 22, 23, 0.1, true)   // fall: frames 22-23, faster fall
+	animManager.AddAnimation("walk", 155, 160, 0.18, true)
 
 	// Set default animation
 	animManager.SetAnimation("idle")
@@ -356,4 +380,114 @@ func (sam *SimpleAnimationManager) IsAnimationFinished() bool {
 	}
 
 	return !anim.loop && sam.currentFrame >= len(anim.frames)-1
+}
+
+// BackgroundLayer represents a single background layer with its properties
+type BackgroundLayer struct {
+	Image     *ebiten.Image
+	Name      string
+	ParallaxX float64 // Horizontal parallax multiplier (0.0 = static, 1.0 = moves with camera)
+	ParallaxY float64 // Vertical parallax multiplier
+	ZDepth    int     // Z-depth for layering (negative = background, positive = foreground)
+	OffsetX   float64 // Additional horizontal offset
+	OffsetY   float64 // Additional vertical offset
+	RepeatX   bool    // Whether to repeat horizontally
+	RepeatY   bool    // Whether to repeat vertically
+}
+
+// DesertLayers returns all desert background layers properly ordered
+func DesertLayers() []BackgroundLayer {
+	return []BackgroundLayer{
+		{DesertBackground1, "desert_bg1", 0.1, 0.05, -6, 0, 0, true, false},
+		{DesertCloud1, "desert_cloud1", 0.15, 0.08, -5, 50, 20, true, false},
+		{DesertCloud2, "desert_cloud2", 0.18, 0.08, -5, 200, 30, true, false},
+		{DesertBackground2, "desert_bg2", 0.25, 0.1, -4, 0, 0, true, false},
+		{DesertCloud3, "desert_cloud3", 0.3, 0.12, -3, 100, 40, true, false},
+		{DesertCloud4, "desert_cloud4", 0.32, 0.12, -3, 300, 25, true, false},
+		{DesertBackground3, "desert_bg3", 0.4, 0.15, -2, 0, 0, true, false},
+		{DesertCloud5, "desert_cloud5", 0.5, 0.2, -1, 150, 35, true, false},
+		{DesertCloud6, "desert_cloud6", 0.52, 0.2, -1, 350, 45, true, false},
+		{DesertCloud7, "desert_cloud7", 0.7, 0.3, 0, 80, 50, true, false},
+		{DesertCloud8, "desert_cloud8", 0.72, 0.3, 0, 280, 40, true, false},
+	}
+}
+
+// ForestLayers returns all forest background layers properly ordered
+func ForestLayers() []BackgroundLayer {
+	return []BackgroundLayer{
+		{ForestSky, "forest_sky", 0.05, 0.02, -6, 0, 0, true, false},
+		{ForestSkyCloud, "forest_sky_cloud", 0.1, 0.05, -5, 0, 0, true, false},
+		{ForestMountain, "forest_mountain", 0.2, 0.08, -4, 0, 50, true, false},
+		{ForestCloud, "forest_cloud", 0.3, 0.12, -3, 100, 30, true, false},
+		{ForestPine1, "forest_pine1", 0.5, 0.2, -2, 0, 100, true, false},
+		{ForestPine2, "forest_pine2", 0.8, 0.4, -1, 0, 150, true, false},
+	}
+}
+
+// MountainsLayers returns all mountain background layers properly ordered
+func MountainsLayers() []BackgroundLayer {
+	return []BackgroundLayer{
+		{MountainsSky, "mountains_sky", 0.05, 0.02, -6, 0, 0, true, false},
+		{MountainsCloudsBg, "mountains_clouds_bg", 0.1, 0.05, -5, 0, 20, true, false},
+		{MountainsGlacial, "mountains_glacial", 0.15, 0.08, -4, 0, 80, true, false},
+		{MountainsCloudsMg3, "mountains_clouds_mg3", 0.25, 0.1, -3, 50, 40, true, false},
+		{MountainsCloudsMg2, "mountains_clouds_mg2", 0.4, 0.15, -2, 120, 60, true, false},
+		{MountainsCloudsMg1, "mountains_clouds_mg1", 0.6, 0.25, -1, 80, 80, true, false},
+		{MountainsCloudLonely, "mountains_cloud_lonely", 0.8, 0.35, 0, 200, 100, false, false},
+	}
+}
+
+// DrawBackgroundLayers draws a set of background layers with parallax scrolling
+func DrawBackgroundLayers(screen *ebiten.Image, layers []BackgroundLayer, cameraX, cameraY float64, screenWidth, screenHeight int) {
+	for _, layer := range layers {
+		if layer.Image == nil {
+			continue
+		}
+
+		// Calculate parallax offset
+		parallaxOffsetX := cameraX * layer.ParallaxX
+		parallaxOffsetY := cameraY * layer.ParallaxY
+
+		// Calculate final position
+		finalX := layer.OffsetX - parallaxOffsetX
+		finalY := layer.OffsetY - parallaxOffsetY
+
+		opts := &ebiten.DrawImageOptions{}
+
+		if layer.RepeatX {
+			// Handle horizontal repetition
+			imgWidth := float64(layer.Image.Bounds().Dx())
+			startX := finalX
+
+			// Adjust starting position to avoid gaps
+			for startX > 0 {
+				startX -= imgWidth
+			}
+
+			for x := startX; x < float64(screenWidth); x += imgWidth {
+				opts.GeoM.Reset()
+				opts.GeoM.Translate(x, finalY)
+				screen.DrawImage(layer.Image, opts)
+			}
+		} else {
+			// Draw single instance
+			opts.GeoM.Reset()
+			opts.GeoM.Translate(finalX, finalY)
+			screen.DrawImage(layer.Image, opts)
+		}
+	}
+}
+
+// GetLayersByEnvironment returns the appropriate layers for the given environment
+func GetLayersByEnvironment(environment string) []BackgroundLayer {
+	switch environment {
+	case "desert":
+		return DesertLayers()
+	case "forest":
+		return ForestLayers()
+	case "mountains":
+		return MountainsLayers()
+	default:
+		return DesertLayers() // Default to desert
+	}
 }

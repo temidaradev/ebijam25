@@ -7,7 +7,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/temidaradev/ebijam25/assets"
-	"github.com/temidaradev/ebijam25/assets/images/start"
 	"github.com/temidaradev/esset/v2"
 )
 
@@ -21,11 +20,14 @@ const (
 )
 
 type Game struct {
-	state          GameState
-	menu           *Menu
-	parallaxOffset float64
-	player         *Player
-	lastFrameTime  float64
+	state              GameState
+	menu               *Menu
+	parallaxOffset     float64
+	player             *Player
+	lastFrameTime      float64
+	currentEnvironment string  // Current background environment
+	cameraX            float64 // Camera X position for parallax
+	cameraY            float64 // Camera Y position for parallax
 }
 
 func init() {
@@ -35,18 +37,22 @@ func init() {
 
 func NewGame() *Game {
 	screenWidth, screenHeight := 1280, 720
-	// Set ground level to be closer to the bottom for now, we'll adjust based on what we see
-	groundLevel := float64(screenHeight) - 80 // Ground 80 pixels from bottom
+	// Set ground level to match where the ground images are positioned
+	// Middle ground has yOffset=20, so ground should be about 20-30 pixels up from bottom
+	groundLevel := float64(screenHeight) - 30
 
-	// Position player at bottom left with some margin
+	// Position player at ground level
 	playerStartX := 100.0            // 100 pixels from left edge
-	playerStartY := groundLevel - 50 // Start 50 pixels above ground
+	playerStartY := groundLevel - 25 // Start just above ground level
 
 	return &Game{
-		state:         GameStateMenu,
-		menu:          NewMenu(),
-		player:        NewPlayer(playerStartX, playerStartY, float64(screenWidth), float64(screenHeight), groundLevel),
-		lastFrameTime: 0,
+		state:              GameStateMenu,
+		menu:               NewMenu(),
+		player:             NewPlayer(playerStartX, playerStartY, float64(screenWidth), float64(screenHeight), groundLevel),
+		lastFrameTime:      0,
+		currentEnvironment: "desert", // Start with desert environment
+		cameraX:            0,
+		cameraY:            0,
 	}
 }
 
@@ -77,10 +83,26 @@ func (g *Game) Update() error {
 		if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 			g.state = GameStatePaused
 		}
+
+		// Environment switching for testing
+		if inpututil.IsKeyJustPressed(ebiten.Key1) {
+			g.currentEnvironment = "desert"
+		}
+		if inpututil.IsKeyJustPressed(ebiten.Key2) {
+			g.currentEnvironment = "forest"
+		}
+		if inpututil.IsKeyJustPressed(ebiten.Key3) {
+			g.currentEnvironment = "mountains"
+		}
+
 		g.parallaxOffset += 0.5
 
 		// Update player
 		g.player.Update(deltaTime)
+
+		// Update camera to follow player (simple follow camera)
+		g.cameraX = g.player.X - 640 // Center camera on player (assuming 1280 screen width)
+		g.cameraY = g.player.Y - 360 // Center camera on player (assuming 720 screen height)
 
 	case GameStatePaused:
 		if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
@@ -92,16 +114,21 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
+	screenWidth, screenHeight := screen.Bounds().Dx(), screen.Bounds().Dy()
+
 	switch g.state {
 	case GameStateMenu:
-		start.DrawStart(screen, g.parallaxOffset*0.1)
+		// Draw background layers for menu (static camera for menu)
+		layers := assets.GetLayersByEnvironment(g.currentEnvironment)
+		assets.DrawBackgroundLayers(screen, layers, g.parallaxOffset*0.1, 0, screenWidth, screenHeight)
 		g.menu.Draw(screen)
 
 	case GameStatePlaying:
-		start.DrawStart(screen, g.parallaxOffset)
+		// Draw background layers with camera-based parallax
+		layers := assets.GetLayersByEnvironment(g.currentEnvironment)
+		assets.DrawBackgroundLayers(screen, layers, g.cameraX, g.cameraY, screenWidth, screenHeight)
 
 		// Draw ground line for debugging
-		screenWidth := screen.Bounds().Dx()
 		groundY := float32(g.player.GroundLevel)
 		vector.StrokeLine(screen, 0, groundY, float32(screenWidth), groundY, 2, color.RGBA{255, 0, 0, 255}, false)
 
@@ -112,11 +139,16 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		px, py, pw, ph := g.player.GetBounds()
 		vector.StrokeRect(screen, float32(px), float32(py), float32(pw), float32(ph), 1, color.RGBA{0, 255, 0, 255}, false)
 
+		// Draw environment switching instructions
+		instructionsText := "Press 1=Desert, 2=Forest, 3=Mountains"
+		esset.DrawText(screen, instructionsText, 10, 10, assets.FontFaceS, color.RGBA{255, 255, 255, 255})
+
 	case GameStatePaused:
-		start.DrawStart(screen, g.parallaxOffset)
+		// Draw background layers (same as playing but static)
+		layers := assets.GetLayersByEnvironment(g.currentEnvironment)
+		assets.DrawBackgroundLayers(screen, layers, g.cameraX, g.cameraY, screenWidth, screenHeight)
 
 		// Draw ground line for debugging
-		screenWidth := screen.Bounds().Dx()
 		groundY := float32(g.player.GroundLevel)
 		vector.StrokeLine(screen, 0, groundY, float32(screenWidth), groundY, 2, color.RGBA{255, 0, 0, 255}, false)
 
@@ -126,8 +158,6 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		// Debug: Draw player bounding box
 		px, py, pw, ph := g.player.GetBounds()
 		vector.StrokeRect(screen, float32(px), float32(py), float32(pw), float32(ph), 1, color.RGBA{0, 255, 0, 255}, false)
-
-		screenWidth, screenHeight := screen.Bounds().Dx(), screen.Bounds().Dy()
 
 		vector.DrawFilledRect(screen, 0, 0, float32(screenWidth), float32(screenHeight),
 			color.RGBA{0, 0, 0, 128}, false)

@@ -66,9 +66,9 @@ func NewPlayer(x, y, worldWidth, worldHeight, groundLevel float64) *Player {
 		MaxSpeed:     300.0,
 		Deceleration: 1200.0, // Increased for less sliding
 		JumpPower:    -450.0,
-		OnGround:     y+float64(HITBOX_OFFSET_Y)+float64(HITBOX_HEIGHT)*1.5 >= groundLevel,
+		OnGround:     false, // Start in air and let physics handle ground detection
 		FacingRight:  true,
-		Scale:        1.5, // Reduced from 2.0 to make player smaller and more visible
+		Scale:        2, // Much smaller scale to make character more proportional
 
 		// Simple animation system
 		AnimationManager: animManager,
