@@ -38,14 +38,6 @@ Each layer contains pieces of a shattered whole. They are not locked—they are 
 
 Minimalist UI. No spoken text or dialogue. All narrative is visual or symbolic.
 
-## Development Scope
-
-- Single-player, offline
-- Designed for simplicity in controls, complexity in structure
-- No procedural generation, AI, or online features
-- Progress tracked via simple flags and state conditions
-- Built using Ebitengine and Go
-
 ## End State
 
 As fragments reunite, the layers converge. The world reshapes itself—or doesn’t.  
