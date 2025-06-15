@@ -24,6 +24,8 @@ type Game struct {
 	state          GameState
 	menu           *Menu
 	parallaxOffset float64
+	player         *Player
+	lastFrameTime  float64
 }
 
 func init() {
@@ -32,13 +34,33 @@ func init() {
 }
 
 func NewGame() *Game {
+	screenWidth, screenHeight := 1280, 720
+	// Set ground level to be closer to the bottom for now, we'll adjust based on what we see
+	groundLevel := float64(screenHeight) - 80 // Ground 80 pixels from bottom
+
+	// Position player at bottom left with some margin
+	playerStartX := 100.0            // 100 pixels from left edge
+	playerStartY := groundLevel - 50 // Start 50 pixels above ground
+
 	return &Game{
-		state: GameStateMenu,
-		menu:  NewMenu(),
+		state:         GameStateMenu,
+		menu:          NewMenu(),
+		player:        NewPlayer(playerStartX, playerStartY, float64(screenWidth), float64(screenHeight), groundLevel),
+		lastFrameTime: 0,
 	}
 }
 
 func (g *Game) Update() error {
+	// Calculate delta time properly
+	deltaTime := 1.0 / 60.0 // Fixed 60 FPS delta time
+	if ebiten.ActualTPS() > 0 {
+		deltaTime = 1.0 / ebiten.ActualTPS()
+	}
+	// Clamp deltaTime to avoid huge jumps (e.g., after alt-tab)
+	if deltaTime > 1.0/20.0 {
+		deltaTime = 1.0 / 20.0 // Max 1/20th of a second per frame
+	}
+
 	switch g.state {
 	case GameStateMenu:
 		g.menu.Update()
@@ -56,6 +78,9 @@ func (g *Game) Update() error {
 			g.state = GameStatePaused
 		}
 		g.parallaxOffset += 0.5
+
+		// Update player
+		g.player.Update(deltaTime)
 
 	case GameStatePaused:
 		if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
@@ -75,8 +100,32 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	case GameStatePlaying:
 		start.DrawStart(screen, g.parallaxOffset)
 
+		// Draw ground line for debugging
+		screenWidth := screen.Bounds().Dx()
+		groundY := float32(g.player.GroundLevel)
+		vector.StrokeLine(screen, 0, groundY, float32(screenWidth), groundY, 2, color.RGBA{255, 0, 0, 255}, false)
+
+		// Draw player
+		g.player.Draw(screen)
+
+		// Debug: Draw player bounding box
+		px, py, pw, ph := g.player.GetBounds()
+		vector.StrokeRect(screen, float32(px), float32(py), float32(pw), float32(ph), 1, color.RGBA{0, 255, 0, 255}, false)
+
 	case GameStatePaused:
 		start.DrawStart(screen, g.parallaxOffset)
+
+		// Draw ground line for debugging
+		screenWidth := screen.Bounds().Dx()
+		groundY := float32(g.player.GroundLevel)
+		vector.StrokeLine(screen, 0, groundY, float32(screenWidth), groundY, 2, color.RGBA{255, 0, 0, 255}, false)
+
+		// Draw player (still visible while paused)
+		g.player.Draw(screen)
+
+		// Debug: Draw player bounding box
+		px, py, pw, ph := g.player.GetBounds()
+		vector.StrokeRect(screen, float32(px), float32(py), float32(pw), float32(ph), 1, color.RGBA{0, 255, 0, 255}, false)
 
 		screenWidth, screenHeight := screen.Bounds().Dx(), screen.Bounds().Dy()
 

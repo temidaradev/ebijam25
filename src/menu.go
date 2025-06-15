@@ -63,7 +63,6 @@ func NewMenu() *Menu {
 	if m.isFullscreen {
 		fullscreenText = "FULLSCREEN: ON"
 	}
-
 	m.settingsItems = []MenuItem{
 		{Text: "MUSIC VOLUME: 100%", Action: func() MenuState { return MenuStateSettings }},
 		{Text: "SOUND EFFECTS: 100%", Action: func() MenuState { return MenuStateSettings }},
@@ -73,6 +72,7 @@ func NewMenu() *Menu {
 		}},
 		{Text: "BACK", Action: func() MenuState { return MenuStateMain }},
 	}
+
 	return m
 }
 
@@ -203,7 +203,9 @@ func (m *Menu) drawMenuItems(screen *ebiten.Image, items []MenuItem, screenWidth
 		esset.DrawText(screen, item.Text, x, y, assets.FontFaceS, itemColor)
 	}
 
+	// Different hint text based on menu state
 	hintText := "USE ARROW KEYS OR WASD TO NAVIGATE • ENTER/SPACE TO SELECT • ESC TO GO BACK"
+
 	hintX := float64(screenWidth) * 0.025
 	hintY := float64(screenHeight) * 0.95
 

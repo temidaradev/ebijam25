@@ -48,3 +48,7 @@ The final decision belongs to the player:
 - Transcend
 
 **UNION** is not given. It is chosen.
+
+## Assets used:
+
+Main character: https://rvros.itch.io/animated-pixel-hero
