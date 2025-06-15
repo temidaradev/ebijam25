@@ -7,7 +7,7 @@ import (
 
 func main() {
 	g := src.NewGame()
-	ebiten.SetWindowSize(800, 600)
+	ebiten.SetWindowSize(1280, 720)
 	ebiten.SetWindowTitle("Ebijam 25 - Temidara")
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	ebiten.SetWindowDecorated(true)
