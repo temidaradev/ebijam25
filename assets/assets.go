@@ -11,6 +11,177 @@ import (
 	"github.com/temidaradev/esset/v2"
 )
 
+// Display configuration constants
+const (
+	// Base game design resolution
+	BaseGameWidth  = 1280
+	BaseGameHeight = 720
+
+	// Standard window sizes
+	WindowWidth800  = 800
+	WindowHeight600 = 600
+)
+
+// ScaleMode represents different scaling modes
+type ScaleMode int
+
+const (
+	ScaleModeStretch ScaleMode = iota // Stretch to fit, may distort aspect ratio
+	ScaleModeAspect                   // Maintain aspect ratio, may have letterboxing
+	ScaleModePixel                    // Pixel-perfect scaling (integer multiples)
+)
+
+// DisplayConfig holds display and scaling configuration
+type DisplayConfig struct {
+	WindowWidth  int
+	WindowHeight int
+	GameWidth    int
+	GameHeight   int
+	ScaleX       float64
+	ScaleY       float64
+	OffsetX      float64
+	OffsetY      float64
+	Mode         ScaleMode
+	IsFullscreen bool
+}
+
+// Global display configuration
+var CurrentDisplayConfig *DisplayConfig
+
+// Initialize display configurations
+func init() {
+	CurrentDisplayConfig = NewDisplayConfig(WindowWidth800, WindowHeight600, ScaleModeAspect, false)
+}
+
+// NewDisplayConfig creates a new display configuration
+func NewDisplayConfig(windowWidth, windowHeight int, mode ScaleMode, fullscreen bool) *DisplayConfig {
+	config := &DisplayConfig{
+		WindowWidth:  windowWidth,
+		WindowHeight: windowHeight,
+		GameWidth:    WindowWidth800,  // Always use 800x600 as base game resolution
+		GameHeight:   WindowHeight600, // Always use 800x600 as base game resolution
+		Mode:         mode,
+		IsFullscreen: fullscreen,
+	}
+
+	config.calculateScaling()
+	return config
+}
+
+// calculateScaling computes the scaling factors and offsets
+func (dc *DisplayConfig) calculateScaling() {
+	windowAspect := float64(dc.WindowWidth) / float64(dc.WindowHeight)
+	gameAspect := float64(dc.GameWidth) / float64(dc.GameHeight)
+
+	switch dc.Mode {
+	case ScaleModeStretch:
+		// Stretch to fit window, ignoring aspect ratio
+		dc.ScaleX = float64(dc.WindowWidth) / float64(dc.GameWidth)
+		dc.ScaleY = float64(dc.WindowHeight) / float64(dc.GameHeight)
+		dc.OffsetX = 0
+		dc.OffsetY = 0
+
+	case ScaleModeAspect:
+		// Maintain aspect ratio with letterboxing/pillarboxing
+		if windowAspect > gameAspect {
+			// Window is wider than game - pillarbox (black bars on sides)
+			dc.ScaleY = float64(dc.WindowHeight) / float64(dc.GameHeight)
+			dc.ScaleX = dc.ScaleY
+			scaledWidth := float64(dc.GameWidth) * dc.ScaleX
+			dc.OffsetX = (float64(dc.WindowWidth) - scaledWidth) / 2
+			dc.OffsetY = 0
+		} else {
+			// Window is taller than game - letterbox (black bars on top/bottom)
+			dc.ScaleX = float64(dc.WindowWidth) / float64(dc.GameWidth)
+			dc.ScaleY = dc.ScaleX
+			scaledHeight := float64(dc.GameHeight) * dc.ScaleY
+			dc.OffsetX = 0
+			dc.OffsetY = (float64(dc.WindowHeight) - scaledHeight) / 2
+		}
+
+	case ScaleModePixel:
+		// Pixel-perfect scaling using integer multiples
+		scaleX := float64(dc.WindowWidth) / float64(dc.GameWidth)
+		scaleY := float64(dc.WindowHeight) / float64(dc.GameHeight)
+
+		// Use the smaller scale factor and make it an integer
+		scale := scaleX
+		if scaleY < scaleX {
+			scale = scaleY
+		}
+
+		// Floor to get integer scaling
+		if scale < 1.0 {
+			scale = 1.0
+		} else {
+			scale = float64(int(scale))
+		}
+
+		dc.ScaleX = scale
+		dc.ScaleY = scale
+
+		scaledWidth := float64(dc.GameWidth) * scale
+		scaledHeight := float64(dc.GameHeight) * scale
+
+		dc.OffsetX = (float64(dc.WindowWidth) - scaledWidth) / 2
+		dc.OffsetY = (float64(dc.WindowHeight) - scaledHeight) / 2
+	}
+}
+
+// UpdateDisplayConfig updates the current display configuration
+func UpdateDisplayConfig(windowWidth, windowHeight int, mode ScaleMode, fullscreen bool) {
+	CurrentDisplayConfig = NewDisplayConfig(windowWidth, windowHeight, mode, fullscreen)
+}
+
+// GetScaledDrawOptions returns DrawImageOptions with proper scaling applied
+func (dc *DisplayConfig) GetScaledDrawOptions() *ebiten.DrawImageOptions {
+	opts := &ebiten.DrawImageOptions{}
+	opts.GeoM.Scale(dc.ScaleX, dc.ScaleY)
+	opts.GeoM.Translate(dc.OffsetX, dc.OffsetY)
+	return opts
+}
+
+// GetScaledPosition converts game coordinates to screen coordinates
+func (dc *DisplayConfig) GetScaledPosition(gameX, gameY float64) (screenX, screenY float64) {
+	screenX = gameX*dc.ScaleX + dc.OffsetX
+	screenY = gameY*dc.ScaleY + dc.OffsetY
+	return
+}
+
+// GetGamePosition converts screen coordinates to game coordinates
+func (dc *DisplayConfig) GetGamePosition(screenX, screenY float64) (gameX, gameY float64) {
+	gameX = (screenX - dc.OffsetX) / dc.ScaleX
+	gameY = (screenY - dc.OffsetY) / dc.ScaleY
+	return
+}
+
+// GetScaledSize returns the scaled size of the game area
+func (dc *DisplayConfig) GetScaledSize() (width, height float64) {
+	width = float64(dc.GameWidth) * dc.ScaleX
+	height = float64(dc.GameHeight) * dc.ScaleY
+	return
+}
+
+// DrawWithScaling draws an image with the current display scaling applied
+func (dc *DisplayConfig) DrawWithScaling(screen *ebiten.Image, src *ebiten.Image, gameX, gameY float64) {
+	opts := &ebiten.DrawImageOptions{}
+	opts.GeoM.Translate(gameX, gameY)
+	opts.GeoM.Scale(dc.ScaleX, dc.ScaleY)
+	opts.GeoM.Translate(dc.OffsetX, dc.OffsetY)
+	screen.DrawImage(src, opts)
+}
+
+// CreateScaledScreen creates a virtual screen for game rendering
+func (dc *DisplayConfig) CreateScaledScreen() *ebiten.Image {
+	return ebiten.NewImage(dc.GameWidth, dc.GameHeight)
+}
+
+// DrawScaledScreen draws the virtual screen to the actual screen with scaling
+func (dc *DisplayConfig) DrawScaledScreen(screen *ebiten.Image, virtualScreen *ebiten.Image) {
+	opts := dc.GetScaledDrawOptions()
+	screen.DrawImage(virtualScreen, opts)
+}
+
 //go:embed *
 var assets embed.FS
 
@@ -386,16 +557,15 @@ func (sam *SimpleAnimationManager) IsAnimationFinished() bool {
 type BackgroundLayer struct {
 	Image     *ebiten.Image
 	Name      string
-	ParallaxX float64 // Horizontal parallax multiplier (0.0 = static, 1.0 = moves with camera)
-	ParallaxY float64 // Vertical parallax multiplier
-	ZDepth    int     // Z-depth for layering (negative = background, positive = foreground)
-	OffsetX   float64 // Additional horizontal offset
-	OffsetY   float64 // Additional vertical offset
-	RepeatX   bool    // Whether to repeat horizontally
-	RepeatY   bool    // Whether to repeat vertically
+	ParallaxX float64
+	ParallaxY float64
+	ZDepth    int
+	OffsetX   float64
+	OffsetY   float64
+	RepeatX   bool
+	RepeatY   bool
 }
 
-// DesertLayers returns all desert background layers properly ordered
 func DesertLayers() []BackgroundLayer {
 	return []BackgroundLayer{
 		{DesertBackground1, "desert_bg1", 0.1, 0.05, -6, 0, 0, true, false},
@@ -412,7 +582,6 @@ func DesertLayers() []BackgroundLayer {
 	}
 }
 
-// ForestLayers returns all forest background layers properly ordered
 func ForestLayers() []BackgroundLayer {
 	return []BackgroundLayer{
 		{ForestSky, "forest_sky", 0.05, 0.02, -6, 0, 0, true, false},
@@ -424,7 +593,6 @@ func ForestLayers() []BackgroundLayer {
 	}
 }
 
-// MountainsLayers returns all mountain background layers properly ordered
 func MountainsLayers() []BackgroundLayer {
 	return []BackgroundLayer{
 		{MountainsSky, "mountains_sky", 0.05, 0.02, -6, 0, 0, true, false},
@@ -437,48 +605,6 @@ func MountainsLayers() []BackgroundLayer {
 	}
 }
 
-// DrawBackgroundLayers draws a set of background layers with parallax scrolling
-func DrawBackgroundLayers(screen *ebiten.Image, layers []BackgroundLayer, cameraX, cameraY float64, screenWidth, screenHeight int) {
-	for _, layer := range layers {
-		if layer.Image == nil {
-			continue
-		}
-
-		// Calculate parallax offset
-		parallaxOffsetX := cameraX * layer.ParallaxX
-		parallaxOffsetY := cameraY * layer.ParallaxY
-
-		// Calculate final position
-		finalX := layer.OffsetX - parallaxOffsetX
-		finalY := layer.OffsetY - parallaxOffsetY
-
-		opts := &ebiten.DrawImageOptions{}
-
-		if layer.RepeatX {
-			// Handle horizontal repetition
-			imgWidth := float64(layer.Image.Bounds().Dx())
-			startX := finalX
-
-			// Adjust starting position to avoid gaps
-			for startX > 0 {
-				startX -= imgWidth
-			}
-
-			for x := startX; x < float64(screenWidth); x += imgWidth {
-				opts.GeoM.Reset()
-				opts.GeoM.Translate(x, finalY)
-				screen.DrawImage(layer.Image, opts)
-			}
-		} else {
-			// Draw single instance
-			opts.GeoM.Reset()
-			opts.GeoM.Translate(finalX, finalY)
-			screen.DrawImage(layer.Image, opts)
-		}
-	}
-}
-
-// GetLayersByEnvironment returns the appropriate layers for the given environment
 func GetLayersByEnvironment(environment string) []BackgroundLayer {
 	switch environment {
 	case "desert":
@@ -488,6 +614,101 @@ func GetLayersByEnvironment(environment string) []BackgroundLayer {
 	case "mountains":
 		return MountainsLayers()
 	default:
-		return DesertLayers() // Default to desert
+		return DesertLayers()
 	}
+}
+
+func DrawBackgroundLayers(screen *ebiten.Image, layers []BackgroundLayer, cameraX, cameraY float64, screenWidth, screenHeight int) {
+	DrawBackgroundLayersScaled(screen, layers, cameraX, cameraY, screenWidth, screenHeight, nil)
+}
+
+// DrawBackgroundLayersScaled draws background layers with display scaling applied
+func DrawBackgroundLayersScaled(screen *ebiten.Image, layers []BackgroundLayer, cameraX, cameraY float64, screenWidth, screenHeight int, displayConfig *DisplayConfig) {
+	for _, layer := range layers {
+		if layer.Image == nil {
+			continue
+		}
+
+		parallaxOffsetX := cameraX * layer.ParallaxX
+		parallaxOffsetY := cameraY * layer.ParallaxY
+
+		finalX := layer.OffsetX - parallaxOffsetX
+		finalY := layer.OffsetY - parallaxOffsetY
+
+		opts := &ebiten.DrawImageOptions{}
+
+		if layer.RepeatX {
+			imgWidth := float64(layer.Image.Bounds().Dx())
+			startX := finalX
+
+			// Adjust for display scaling if provided
+			effectiveScreenWidth := float64(screenWidth)
+			if displayConfig != nil {
+				effectiveScreenWidth = float64(displayConfig.GameWidth)
+			}
+
+			for startX > 0 {
+				startX -= imgWidth
+			}
+
+			for x := startX; x < effectiveScreenWidth; x += imgWidth {
+				opts.GeoM.Reset()
+				opts.GeoM.Translate(x, finalY)
+
+				// Apply display scaling if provided
+				if displayConfig != nil {
+					opts.GeoM.Scale(displayConfig.ScaleX, displayConfig.ScaleY)
+					opts.GeoM.Translate(displayConfig.OffsetX, displayConfig.OffsetY)
+				}
+
+				screen.DrawImage(layer.Image, opts)
+			}
+		} else {
+			opts.GeoM.Reset()
+			opts.GeoM.Translate(finalX, finalY)
+
+			// Apply display scaling if provided
+			if displayConfig != nil {
+				opts.GeoM.Scale(displayConfig.ScaleX, displayConfig.ScaleY)
+				opts.GeoM.Translate(displayConfig.OffsetX, displayConfig.OffsetY)
+			}
+
+			screen.DrawImage(layer.Image, opts)
+		}
+	}
+}
+
+// ScaleBackgroundLayer scales a background layer for different resolutions
+func ScaleBackgroundLayer(layer *BackgroundLayer, scaleX, scaleY float64) BackgroundLayer {
+	scaledLayer := *layer // Copy the layer
+
+	// Scale the offsets
+	scaledLayer.OffsetX *= scaleX
+	scaledLayer.OffsetY *= scaleY
+
+	// Adjust parallax factors slightly for different scales
+	// This helps maintain the parallax effect across different resolutions
+	parallaxScale := (scaleX + scaleY) / 2.0
+	if parallaxScale != 1.0 {
+		scaledLayer.ParallaxX *= parallaxScale
+		scaledLayer.ParallaxY *= parallaxScale
+	}
+
+	return scaledLayer
+}
+
+// GetScaledLayersByEnvironment returns background layers scaled for current display config
+func GetScaledLayersByEnvironment(environment string, displayConfig *DisplayConfig) []BackgroundLayer {
+	baseLayers := GetLayersByEnvironment(environment)
+
+	if displayConfig == nil {
+		return baseLayers
+	}
+
+	scaledLayers := make([]BackgroundLayer, len(baseLayers))
+	for i, layer := range baseLayers {
+		scaledLayers[i] = ScaleBackgroundLayer(&layer, displayConfig.ScaleX, displayConfig.ScaleY)
+	}
+
+	return scaledLayers
 }

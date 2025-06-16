@@ -36,7 +36,8 @@ func init() {
 }
 
 func NewGame() *Game {
-	screenWidth, screenHeight := 1280, 720
+	// Use 800x600 as the base game resolution
+	screenWidth, screenHeight := 800, 600
 	// Set ground level to match where the ground images are positioned
 	// Middle ground has yOffset=20, so ground should be about 20-30 pixels up from bottom
 	groundLevel := float64(screenHeight) - 30
@@ -101,8 +102,8 @@ func (g *Game) Update() error {
 		g.player.Update(deltaTime)
 
 		// Update camera to follow player (simple follow camera)
-		g.cameraX = g.player.X - 640 // Center camera on player (assuming 1280 screen width)
-		g.cameraY = g.player.Y - 360 // Center camera on player (assuming 720 screen height)
+		g.cameraX = g.player.X - 400 // Center camera on player (800/2 = 400)
+		g.cameraY = g.player.Y - 300 // Center camera on player (600/2 = 300)
 
 	case GameStatePaused:
 		if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
@@ -143,6 +144,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		instructionsText := "Press 1=Desert, 2=Forest, 3=Mountains"
 		esset.DrawText(screen, instructionsText, 10, 10, assets.FontFaceS, color.RGBA{255, 255, 255, 255})
 
+		// Draw scaling instructions
+		scalingText := "F11=Fullscreen, F1=Aspect, F2=Stretch, F3=Pixel"
+		esset.DrawText(screen, scalingText, 10, 30, assets.FontFaceS, color.RGBA{200, 200, 200, 255})
+
 	case GameStatePaused:
 		// Draw background layers (same as playing but static)
 		layers := assets.GetLayersByEnvironment(g.currentEnvironment)
@@ -176,4 +181,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return outsideWidth, outsideHeight
+}
+
+func (g *Game) GetState() GameState {
+	return g.state
 }

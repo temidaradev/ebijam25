@@ -35,6 +35,7 @@ type Menu struct {
 	startGameRequested bool
 	exitRequested      bool
 	isFullscreen       bool
+	scalingMode        int // 0=Aspect (F1), 1=Stretch (F2), 2=Pixel (F3)
 }
 
 func NewMenu() *Menu {
@@ -45,6 +46,7 @@ func NewMenu() *Menu {
 		transitionAlpha: 1.0,
 		backgroundAlpha: 0.8,
 		isFullscreen:    ebiten.IsFullscreen(),
+		scalingMode:     0, // Start with aspect ratio scaling
 	}
 
 	m.menuItems = []MenuItem{
@@ -59,13 +61,21 @@ func NewMenu() *Menu {
 		}},
 	}
 
-	fullscreenText := "FULLSCREEN: OFF"
+	fullscreenText := "FULLSCREEN: OFF (F11)"
 	if m.isFullscreen {
-		fullscreenText = "FULLSCREEN: ON"
+		fullscreenText = "FULLSCREEN: ON (F11)"
 	}
+
+	// Get current scaling mode
+	scalingModeText := m.getScalingModeText()
+
 	m.settingsItems = []MenuItem{
 		{Text: "MUSIC VOLUME: 100%", Action: func() MenuState { return MenuStateSettings }},
 		{Text: "SOUND EFFECTS: 100%", Action: func() MenuState { return MenuStateSettings }},
+		{Text: scalingModeText, Action: func() MenuState {
+			m.cycleScalingMode()
+			return MenuStateSettings
+		}},
 		{Text: fullscreenText, Action: func() MenuState {
 			m.toggleFullscreen()
 			return MenuStateSettings
@@ -80,10 +90,11 @@ func (m *Menu) toggleFullscreen() {
 	m.isFullscreen = !m.isFullscreen
 	ebiten.SetFullscreen(m.isFullscreen)
 
+	// Update the fullscreen text in settings
 	if m.isFullscreen {
-		m.settingsItems[2].Text = "FULLSCREEN: ON"
+		m.settingsItems[3].Text = "FULLSCREEN: ON (F11)"
 	} else {
-		m.settingsItems[2].Text = "FULLSCREEN: OFF"
+		m.settingsItems[3].Text = "FULLSCREEN: OFF (F11)"
 	}
 }
 
@@ -91,6 +102,23 @@ func (m *Menu) Update() error {
 	m.animationTime += 1.0 / 60.0
 
 	currentItems := m.getCurrentMenuItems()
+
+	// Handle F key shortcuts
+	if inpututil.IsKeyJustPressed(ebiten.KeyF1) {
+		m.scalingMode = 0
+		m.applyScalingMode()
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyF2) {
+		m.scalingMode = 1
+		m.applyScalingMode()
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyF3) {
+		m.scalingMode = 2
+		m.applyScalingMode()
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyF11) {
+		m.toggleFullscreen()
+	}
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyArrowUp) || inpututil.IsKeyJustPressed(ebiten.KeyW) {
 		m.selectedIndex--
@@ -204,7 +232,12 @@ func (m *Menu) drawMenuItems(screen *ebiten.Image, items []MenuItem, screenWidth
 	}
 
 	// Different hint text based on menu state
-	hintText := "USE ARROW KEYS OR WASD TO NAVIGATE • ENTER/SPACE TO SELECT • ESC TO GO BACK"
+	var hintText string
+	if m.state == MenuStateSettings {
+		hintText = "USE ARROW KEYS OR WASD TO NAVIGATE • ENTER/SPACE TO SELECT • ESC TO GO BACK • F1-F3 FOR SCALING • F11 FOR FULLSCREEN"
+	} else {
+		hintText = "USE ARROW KEYS OR WASD TO NAVIGATE • ENTER/SPACE TO SELECT • ESC TO GO BACK"
+	}
 
 	hintX := float64(screenWidth) * 0.025
 	hintY := float64(screenHeight) * 0.95
@@ -239,4 +272,44 @@ func (m *Menu) IsExitSelected() bool {
 		return true
 	}
 	return false
+}
+
+func (m *Menu) getScalingModeText() string {
+	switch m.scalingMode {
+	case 0:
+		return "SCALING: ASPECT RATIO (F1)"
+	case 1:
+		return "SCALING: STRETCH (F2)"
+	case 2:
+		return "SCALING: PIXEL PERFECT (F3)"
+	default:
+		return "SCALING: ASPECT RATIO (F1)"
+	}
+}
+
+func (m *Menu) cycleScalingMode() {
+	m.scalingMode = (m.scalingMode + 1) % 3
+	m.applyScalingMode()
+}
+
+func (m *Menu) applyScalingMode() {
+	// Apply the scaling mode immediately
+	w, h := ebiten.WindowSize()
+	if ebiten.IsFullscreen() {
+		w, h = ebiten.Monitor().Size()
+	}
+
+	switch m.scalingMode {
+	case 0:
+		assets.UpdateDisplayConfig(w, h, assets.ScaleModeAspect, ebiten.IsFullscreen())
+	case 1:
+		assets.UpdateDisplayConfig(w, h, assets.ScaleModeStretch, ebiten.IsFullscreen())
+	case 2:
+		assets.UpdateDisplayConfig(w, h, assets.ScaleModePixel, ebiten.IsFullscreen())
+	}
+
+	// Update the menu text if we're in settings
+	if m.state == MenuStateSettings {
+		m.settingsItems[2].Text = m.getScalingModeText()
+	}
 }
