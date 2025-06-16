@@ -13,13 +13,8 @@ import (
 
 // Display configuration constants
 const (
-	// Base game design resolution
-	BaseGameWidth  = 1280
-	BaseGameHeight = 720
-
-	// Standard window sizes
-	WindowWidth800  = 800
-	WindowHeight600 = 600
+	WindowWidth800  = 1280
+	WindowHeight600 = 720
 )
 
 // ScaleMode represents different scaling modes
@@ -58,8 +53,8 @@ func NewDisplayConfig(windowWidth, windowHeight int, mode ScaleMode, fullscreen 
 	config := &DisplayConfig{
 		WindowWidth:  windowWidth,
 		WindowHeight: windowHeight,
-		GameWidth:    WindowWidth800,  // Always use 800x600 as base game resolution
-		GameHeight:   WindowHeight600, // Always use 800x600 as base game resolution
+		GameWidth:    WindowWidth800,  // Always use 1280x720 as base game resolution
+		GameHeight:   WindowHeight600, // Always use 1280x720 as base game resolution
 		Mode:         mode,
 		IsFullscreen: fullscreen,
 	}
@@ -553,7 +548,6 @@ func (sam *SimpleAnimationManager) IsAnimationFinished() bool {
 	return !anim.loop && sam.currentFrame >= len(anim.frames)-1
 }
 
-// BackgroundLayer represents a single background layer with its properties
 type BackgroundLayer struct {
 	Image     *ebiten.Image
 	Name      string
@@ -564,44 +558,38 @@ type BackgroundLayer struct {
 	OffsetY   float64
 	RepeatX   bool
 	RepeatY   bool
+	ScaleX    float64
+	ScaleY    float64
 }
 
 func DesertLayers() []BackgroundLayer {
 	return []BackgroundLayer{
-		{DesertBackground1, "desert_bg1", 0.1, 0.05, -6, 0, 0, true, false},
-		{DesertCloud1, "desert_cloud1", 0.15, 0.08, -5, 50, 20, true, false},
-		{DesertCloud2, "desert_cloud2", 0.18, 0.08, -5, 200, 30, true, false},
-		{DesertBackground2, "desert_bg2", 0.25, 0.1, -4, 0, 0, true, false},
-		{DesertCloud3, "desert_cloud3", 0.3, 0.12, -3, 100, 40, true, false},
-		{DesertCloud4, "desert_cloud4", 0.32, 0.12, -3, 300, 25, true, false},
-		{DesertBackground3, "desert_bg3", 0.4, 0.15, -2, 0, 0, true, false},
-		{DesertCloud5, "desert_cloud5", 0.5, 0.2, -1, 150, 35, true, false},
-		{DesertCloud6, "desert_cloud6", 0.52, 0.2, -1, 350, 45, true, false},
-		{DesertCloud7, "desert_cloud7", 0.7, 0.3, 0, 80, 50, true, false},
-		{DesertCloud8, "desert_cloud8", 0.72, 0.3, 0, 280, 40, true, false},
+		{DesertBackground1, "desert_bg1", 0.1, 0.05, -6, 0, 0, true, false, 1.5, 1.5},
+		{DesertBackground2, "desert_bg2", 0.25, 0.1, -4, 0, 0, true, false, 1.5, 1.5},
+		{DesertBackground3, "desert_bg3", 0.4, 0.15, -2, 0, 0, true, false, 1.5, 1.5},
 	}
 }
 
 func ForestLayers() []BackgroundLayer {
 	return []BackgroundLayer{
-		{ForestSky, "forest_sky", 0.05, 0.02, -6, 0, 0, true, false},
-		{ForestSkyCloud, "forest_sky_cloud", 0.1, 0.05, -5, 0, 0, true, false},
-		{ForestMountain, "forest_mountain", 0.2, 0.08, -4, 0, 50, true, false},
-		{ForestCloud, "forest_cloud", 0.3, 0.12, -3, 100, 30, true, false},
-		{ForestPine1, "forest_pine1", 0.5, 0.2, -2, 0, 100, true, false},
-		{ForestPine2, "forest_pine2", 0.8, 0.4, -1, 0, 150, true, false},
+		{ForestSky, "forest_sky", 0.05, 0.02, -6, 0, 0, true, false, 2, 2},
+		{ForestSkyCloud, "forest_sky_cloud", 0.1, 0.05, -5, 0, 10, true, false, 3.2, 2},
+		{ForestMountain, "forest_mountain", 0.2, 0.08, -4, 0, 60, true, false, 2, 2},
+		{ForestCloud, "forest_cloud", 0.3, 0.12, -3, 160, 48, true, false, 2, 2},
+		{ForestPine1, "forest_pine1", 0.5, 0.2, -2, 0, 125, true, false, 2, 2},
+		{ForestPine2, "forest_pine2", 0.8, 0.4, -1, 0, 160, true, false, 2, 2},
 	}
 }
 
 func MountainsLayers() []BackgroundLayer {
 	return []BackgroundLayer{
-		{MountainsSky, "mountains_sky", 0.05, 0.02, -6, 0, 0, true, false},
-		{MountainsCloudsBg, "mountains_clouds_bg", 0.1, 0.05, -5, 0, 20, true, false},
-		{MountainsGlacial, "mountains_glacial", 0.15, 0.08, -4, 0, 80, true, false},
-		{MountainsCloudsMg3, "mountains_clouds_mg3", 0.25, 0.1, -3, 50, 40, true, false},
-		{MountainsCloudsMg2, "mountains_clouds_mg2", 0.4, 0.15, -2, 120, 60, true, false},
-		{MountainsCloudsMg1, "mountains_clouds_mg1", 0.6, 0.25, -1, 80, 80, true, false},
-		{MountainsCloudLonely, "mountains_cloud_lonely", 0.8, 0.35, 0, 200, 100, false, false},
+		{MountainsSky, "mountains_sky", 0.05, 0.02, -6, 0, 0, true, false, 2, 2},
+		{MountainsCloudsBg, "mountains_clouds_bg", 0.1, 0.05, -5, 0, 10, true, false, 2, 2},
+		{MountainsGlacial, "mountains_glacial", 0.2, 0.08, -4, 0, 80, true, false, 2, 2},
+		{MountainsCloudsMg3, "mountains_clouds_mg3", 0.25, 0.1, -3, 50, 120, true, false, 2, 2},
+		{MountainsCloudsMg2, "mountains_clouds_mg2", 0.4, 0.15, -2, 208, 140, true, false, 2, 2},
+		{MountainsCloudsMg1, "mountains_clouds_mg1", 0.6, 0.25, -1, 128, 145, true, false, 2, 2},
+		{MountainsCloudLonely, "mountains_cloud_lonely", 0.8, 0.35, 0, 320, 112, false, false, 2, 2},
 	}
 }
 
@@ -655,6 +643,9 @@ func DrawBackgroundLayersScaled(screen *ebiten.Image, layers []BackgroundLayer, 
 				opts.GeoM.Reset()
 				opts.GeoM.Translate(x, finalY)
 
+				// Apply per-layer scaling first
+				opts.GeoM.Scale(layer.ScaleX, layer.ScaleY)
+
 				// Apply display scaling if provided
 				if displayConfig != nil {
 					opts.GeoM.Scale(displayConfig.ScaleX, displayConfig.ScaleY)
@@ -666,6 +657,9 @@ func DrawBackgroundLayersScaled(screen *ebiten.Image, layers []BackgroundLayer, 
 		} else {
 			opts.GeoM.Reset()
 			opts.GeoM.Translate(finalX, finalY)
+
+			// Apply per-layer scaling first
+			opts.GeoM.Scale(layer.ScaleX, layer.ScaleY)
 
 			// Apply display scaling if provided
 			if displayConfig != nil {

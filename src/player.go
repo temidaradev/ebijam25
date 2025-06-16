@@ -35,6 +35,8 @@ type Player struct {
 	WorldWidth  float64
 	WorldHeight float64
 	GroundLevel float64
+
+	Camera *Camera // Camera that follows the player
 }
 
 const (
@@ -58,32 +60,27 @@ func NewPlayer(x, y, worldWidth, worldHeight, groundLevel float64) *Player {
 	animManager.SetAnimationSpeed(1.0) // Normal animation speed
 
 	player := &Player{
-		X:            x,
-		Y:            y,
-		VelocityX:    0,
-		VelocityY:    0,
-		Speed:        200.0,
-		MaxSpeed:     300.0,
-		Deceleration: 1200.0, // Increased for less sliding
-		JumpPower:    -450.0,
-		OnGround:     false, // Start in air and let physics handle ground detection
-		FacingRight:  true,
-		Scale:        2, // Much smaller scale to make character more proportional
-
-		// Simple animation system
+		X:                x,
+		Y:                y,
+		VelocityX:        0,
+		VelocityY:        0,
+		Speed:            200.0,
+		MaxSpeed:         300.0,
+		Deceleration:     1200.0,
+		JumpPower:        -450.0,
+		OnGround:         false,
+		FacingRight:      true,
+		Scale:            2,
 		AnimationManager: animManager,
-
-		// Jump mechanics
-		JumpBufferTime: 0.1,
-		CoyoteTime:     0.1,
-		jumpBuffer:     0,
-		coyoteBuffer:   0,
-		groundBuffer:   0,
-
-		// World boundaries
-		WorldWidth:  worldWidth,
-		WorldHeight: worldHeight,
-		GroundLevel: groundLevel,
+		JumpBufferTime:   0.1,
+		CoyoteTime:       0.1,
+		jumpBuffer:       0,
+		coyoteBuffer:     0,
+		groundBuffer:     0,
+		WorldWidth:       worldWidth,
+		WorldHeight:      worldHeight,
+		GroundLevel:      groundLevel,
+		Camera:           NewCamera(1280, 720, 0, worldHeight), // Updated to 1280x720 viewport
 	}
 
 	return player
@@ -98,6 +95,12 @@ func (p *Player) Update(deltaTime float64) {
 	// Update the animation system
 	if p.AnimationManager != nil {
 		p.AnimationManager.Update(deltaTime)
+	}
+
+	// Update camera to follow player with velocity-based look-ahead
+	if p.Camera != nil {
+		p.Camera.Follow(p.X+(float64(SPRITE_WIDTH)*p.Scale/2), p.Y+(float64(SPRITE_HEIGHT)*p.Scale/2), p.VelocityX, p.VelocityY)
+		p.Camera.Update(deltaTime)
 	}
 }
 
@@ -193,26 +196,25 @@ func (p *Player) updatePhysics(deltaTime float64) {
 		p.Y = p.GroundLevel - float64(HITBOX_OFFSET_Y)*p.Scale - (float64(HITBOX_HEIGHT) * p.Scale) // Position player on top of ground
 		p.VelocityY = 0
 		p.OnGround = true
-		p.groundBuffer = 0.05 // Small buffer for ground detection
+		p.groundBuffer = 0.05
 	} else {
 		p.OnGround = false
 	}
 
-	// Start coyote time when leaving ground
 	if wasOnGround && !p.OnGround && p.VelocityY >= 0 {
 		p.coyoteBuffer = p.CoyoteTime
 	}
 
-	// Horizontal bounds checking using hitbox
-	hitboxWidth := float64(HITBOX_WIDTH) * p.Scale
-	hitboxOffsetX := float64(HITBOX_OFFSET_X) * p.Scale
-	if p.X+hitboxOffsetX < 0 {
-		p.X = -hitboxOffsetX
-		p.VelocityX = 0
-	} else if p.X+hitboxOffsetX+hitboxWidth > p.WorldWidth {
-		p.X = p.WorldWidth - hitboxWidth - hitboxOffsetX
-		p.VelocityX = 0
-	}
+	// Horizontal bounds checking using hitbox (REMOVED for limitless map)
+	// hitboxWidth := float64(HITBOX_WIDTH) * p.Scale
+	// hitboxOffsetX := float64(HITBOX_OFFSET_X) * p.Scale
+	// if p.X+hitboxOffsetX < 0 {
+	// 	p.X = -hitboxOffsetX
+	// 	p.VelocityX = 0
+	// } else if p.X+hitboxOffsetX+hitboxWidth > p.WorldWidth {
+	// 	p.X = p.WorldWidth - hitboxWidth - hitboxOffsetX
+	// 	p.VelocityX = 0
+	// }
 
 	// Vertical bounds checking (prevent falling through world)
 	if p.Y > p.WorldHeight {
@@ -324,6 +326,21 @@ func (p *Player) GetVelocity() (vx, vy float64) {
 func (p *Player) SetVelocity(vx, vy float64) {
 	p.VelocityX = vx
 	p.VelocityY = vy
+}
+
+// GetCamera returns the player's camera for external use
+func (p *Player) GetCamera() *Camera {
+	return p.Camera
+}
+
+// SetCameraSettings allows fine-tuning camera behavior
+func (p *Player) SetCameraSettings(followSpeed, lookAhead, deadZone, verticalOffset float64) {
+	if p.Camera != nil {
+		p.Camera.FollowSpeed = followSpeed
+		p.Camera.LookAhead = lookAhead
+		p.Camera.DeadZone = deadZone
+		p.Camera.VerticalOffset = verticalOffset
+	}
 }
 
 // Helper function for absolute value

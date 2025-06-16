@@ -12,8 +12,8 @@ import (
 func main() {
 	g := src.NewGame()
 
-	// Initial window setup for 800x600
-	ebiten.SetWindowSize(800, 600)
+	// Initial window setup for 1280x720
+	ebiten.SetWindowSize(1280, 720)
 	ebiten.SetWindowTitle("Ebijam 25 - Temidaradev")
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	ebiten.SetWindowDecorated(true)
@@ -22,8 +22,8 @@ func main() {
 	ebiten.SetCursorMode(ebiten.CursorModeVisible)
 	ebiten.SetCursorShape(ebiten.CursorShapeDefault)
 
-	// Initialize display configuration for 800x600 with aspect ratio scaling
-	assets.UpdateDisplayConfig(800, 600, assets.ScaleModeAspect, false)
+	// Initialize display configuration for 1280x720 with aspect ratio scaling
+	assets.UpdateDisplayConfig(1280, 720, assets.ScaleModeAspect, false)
 
 	if err := ebiten.RunGame(&GameWrapper{game: g}); err != nil {
 		panic(err)
@@ -39,12 +39,12 @@ func (gw *GameWrapper) Update() error {
 	if inpututil.IsKeyJustPressed(ebiten.KeyF11) {
 		if ebiten.IsFullscreen() {
 			ebiten.SetFullscreen(false)
-			ebiten.SetWindowSize(800, 600)
-			assets.UpdateDisplayConfig(800, 600, assets.ScaleModeAspect, false)
+			ebiten.SetWindowSize(1280, 720)
+			assets.UpdateDisplayConfig(1280, 720, assets.ScaleModeAspect, false)
 		} else {
 			// Switch to fullscreen
 			ebiten.SetFullscreen(true)
-			// Get monitor size for fullscreen scaling, but keep 800x600 as base resolution
+			// Get monitor size for fullscreen scaling, but keep 1280x720 as base resolution
 			w, h := ebiten.Monitor().Size()
 			assets.UpdateDisplayConfig(w, h, assets.ScaleModeAspect, true)
 		}
@@ -82,7 +82,7 @@ func (gw *GameWrapper) Update() error {
 }
 
 func (gw *GameWrapper) Draw(screen *ebiten.Image) {
-	virtualScreen := ebiten.NewImage(800, 600)
+	virtualScreen := ebiten.NewImage(1280, 720)
 
 	gw.game.Draw(virtualScreen)
 
@@ -100,7 +100,7 @@ func (gw *GameWrapper) Layout(outsideWidth, outsideHeight int) (int, int) {
 		if currentConfig.WindowWidth != outsideWidth || currentConfig.WindowHeight != outsideHeight {
 			assets.UpdateDisplayConfig(outsideWidth, outsideHeight, currentConfig.Mode, false)
 		}
-		return 800, 600
+		return 1280, 720
 	} else {
 		currentConfig := assets.CurrentDisplayConfig
 		if currentConfig.WindowWidth != outsideWidth || currentConfig.WindowHeight != outsideHeight {

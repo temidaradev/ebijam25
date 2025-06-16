@@ -1,6 +1,7 @@
 package src
 
 import (
+	"fmt"
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -25,9 +26,7 @@ type Game struct {
 	parallaxOffset     float64
 	player             *Player
 	lastFrameTime      float64
-	currentEnvironment string  // Current background environment
-	cameraX            float64 // Camera X position for parallax
-	cameraY            float64 // Camera Y position for parallax
+	currentEnvironment string // Current background environment
 }
 
 func init() {
@@ -36,10 +35,8 @@ func init() {
 }
 
 func NewGame() *Game {
-	// Use 800x600 as the base game resolution
-	screenWidth, screenHeight := 800, 600
-	// Set ground level to match where the ground images are positioned
-	// Middle ground has yOffset=20, so ground should be about 20-30 pixels up from bottom
+	// Use 1280x720 as the base game resolution
+	screenWidth, screenHeight := 1280, 720
 	groundLevel := float64(screenHeight) - 30
 
 	// Position player at ground level
@@ -52,8 +49,6 @@ func NewGame() *Game {
 		player:             NewPlayer(playerStartX, playerStartY, float64(screenWidth), float64(screenHeight), groundLevel),
 		lastFrameTime:      0,
 		currentEnvironment: "desert", // Start with desert environment
-		cameraX:            0,
-		cameraY:            0,
 	}
 }
 
@@ -101,10 +96,6 @@ func (g *Game) Update() error {
 		// Update player
 		g.player.Update(deltaTime)
 
-		// Update camera to follow player (simple follow camera)
-		g.cameraX = g.player.X - 400 // Center camera on player (800/2 = 400)
-		g.cameraY = g.player.Y - 300 // Center camera on player (600/2 = 300)
-
 	case GameStatePaused:
 		if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 			g.state = GameStatePlaying
@@ -125,22 +116,29 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		g.menu.Draw(screen)
 
 	case GameStatePlaying:
+		// Get camera position from player's camera
+		camera := g.player.GetCamera()
+		cameraX, cameraY, _, _ := camera.GetView()
+
 		// Draw background layers with camera-based parallax
 		layers := assets.GetLayersByEnvironment(g.currentEnvironment)
-		assets.DrawBackgroundLayers(screen, layers, g.cameraX, g.cameraY, screenWidth, screenHeight)
+		assets.DrawBackgroundLayers(screen, layers, cameraX, cameraY, screenWidth, screenHeight)
 
-		// Draw ground line for debugging
+		// Draw ground line for debugging (in screen space, adjusted for camera)
 		groundY := float32(g.player.GroundLevel)
-		vector.StrokeLine(screen, 0, groundY, float32(screenWidth), groundY, 2, color.RGBA{255, 0, 0, 255}, false)
+		screenGroundX1, screenGroundY1 := camera.WorldToScreen(0, float64(groundY))
+		screenGroundX2, screenGroundY2 := camera.WorldToScreen(float64(screenWidth), float64(groundY))
+		vector.StrokeLine(screen, float32(screenGroundX1), float32(screenGroundY1), float32(screenGroundX2), float32(screenGroundY2), 2, color.RGBA{255, 0, 0, 255}, false)
 
-		// Draw player
-		g.player.Draw(screen)
+		// Draw player with camera transform
+		g.drawPlayerWithCamera(screen, camera)
 
-		// Debug: Draw player bounding box
+		// Debug: Draw player bounding box with camera transform
 		px, py, pw, ph := g.player.GetBounds()
-		vector.StrokeRect(screen, float32(px), float32(py), float32(pw), float32(ph), 1, color.RGBA{0, 255, 0, 255}, false)
+		screenPX, screenPY := camera.WorldToScreen(px, py)
+		vector.StrokeRect(screen, float32(screenPX), float32(screenPY), float32(pw), float32(ph), 1, color.RGBA{0, 255, 0, 255}, false)
 
-		// Draw environment switching instructions
+		// Draw UI elements (not affected by camera)
 		instructionsText := "Press 1=Desert, 2=Forest, 3=Mountains"
 		esset.DrawText(screen, instructionsText, 10, 10, assets.FontFaceS, color.RGBA{255, 255, 255, 255})
 
@@ -148,21 +146,36 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		scalingText := "F11=Fullscreen, F1=Aspect, F2=Stretch, F3=Pixel"
 		esset.DrawText(screen, scalingText, 10, 30, assets.FontFaceS, color.RGBA{200, 200, 200, 255})
 
+		// Draw camera debug info
+		cameraInfo := fmt.Sprintf("Camera: (%.1f, %.1f)", cameraX, cameraY)
+		esset.DrawText(screen, cameraInfo, 10, 50, assets.FontFaceS, color.RGBA{150, 150, 150, 255})
+
+		// Draw player position info
+		playerInfo := fmt.Sprintf("Player: (%.1f, %.1f) Vel: (%.1f, %.1f)", g.player.X, g.player.Y, g.player.VelocityX, g.player.VelocityY)
+		esset.DrawText(screen, playerInfo, 10, 70, assets.FontFaceS, color.RGBA{150, 150, 150, 255})
+
 	case GameStatePaused:
+		// Get camera position from player's camera
+		camera := g.player.GetCamera()
+		cameraX, cameraY, _, _ := camera.GetView()
+
 		// Draw background layers (same as playing but static)
 		layers := assets.GetLayersByEnvironment(g.currentEnvironment)
-		assets.DrawBackgroundLayers(screen, layers, g.cameraX, g.cameraY, screenWidth, screenHeight)
+		assets.DrawBackgroundLayers(screen, layers, cameraX, cameraY, screenWidth, screenHeight)
 
-		// Draw ground line for debugging
+		// Draw ground line for debugging (in screen space, adjusted for camera)
 		groundY := float32(g.player.GroundLevel)
-		vector.StrokeLine(screen, 0, groundY, float32(screenWidth), groundY, 2, color.RGBA{255, 0, 0, 255}, false)
+		screenGroundX1, screenGroundY1 := camera.WorldToScreen(0, float64(groundY))
+		screenGroundX2, screenGroundY2 := camera.WorldToScreen(float64(screenWidth), float64(groundY))
+		vector.StrokeLine(screen, float32(screenGroundX1), float32(screenGroundY1), float32(screenGroundX2), float32(screenGroundY2), 2, color.RGBA{255, 0, 0, 255}, false)
 
-		// Draw player (still visible while paused)
-		g.player.Draw(screen)
+		// Draw player with camera transform
+		g.drawPlayerWithCamera(screen, camera)
 
-		// Debug: Draw player bounding box
+		// Debug: Draw player bounding box with camera transform
 		px, py, pw, ph := g.player.GetBounds()
-		vector.StrokeRect(screen, float32(px), float32(py), float32(pw), float32(ph), 1, color.RGBA{0, 255, 0, 255}, false)
+		screenPX, screenPY := camera.WorldToScreen(px, py)
+		vector.StrokeRect(screen, float32(screenPX), float32(screenPY), float32(pw), float32(ph), 1, color.RGBA{0, 255, 0, 255}, false)
 
 		vector.DrawFilledRect(screen, 0, 0, float32(screenWidth), float32(screenHeight),
 			color.RGBA{0, 0, 0, 128}, false)
@@ -185,4 +198,30 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 
 func (g *Game) GetState() GameState {
 	return g.state
+}
+
+// drawPlayerWithCamera draws the player with proper camera transforms
+func (g *Game) drawPlayerWithCamera(screen *ebiten.Image, camera *Camera) {
+	if g.player.AnimationManager != nil {
+		// Use simple animation system with camera transform
+		op := &ebiten.DrawImageOptions{}
+
+		// Apply player scale
+		op.GeoM.Scale(g.player.Scale, g.player.Scale)
+
+		// Flip horizontally if facing left
+		if !g.player.FacingRight {
+			op.GeoM.Scale(-1, 1)
+			op.GeoM.Translate(50*g.player.Scale, 0) // 50 is sprite width
+		}
+
+		// Apply world position
+		op.GeoM.Translate(g.player.X, g.player.Y)
+
+		// Apply camera transform
+		cameraTransform := camera.GetTransform()
+		op.GeoM.Concat(*cameraTransform)
+
+		g.player.AnimationManager.DrawWithOptions(screen, op)
+	}
 }
