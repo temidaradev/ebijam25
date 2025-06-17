@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	WindowWidth800  = 1280
-	WindowHeight600 = 720
+	WindowWidth  = 1280
+	WindowHeight = 720
 )
 
 //go:embed *

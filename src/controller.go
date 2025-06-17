@@ -165,12 +165,10 @@ func (c *ControllerInput) IsJumpJustPressed() bool {
 	}
 
 	if c.hasStandardLayout {
-		return inpututil.IsStandardGamepadButtonJustPressed(c.gamepadID, ebiten.StandardGamepadButtonRightBottom) ||
-			inpututil.IsStandardGamepadButtonJustPressed(c.gamepadID, ebiten.StandardGamepadButtonRightRight)
+		return inpututil.IsStandardGamepadButtonJustPressed(c.gamepadID, ebiten.StandardGamepadButtonRightRight)
 	}
 
-	return inpututil.IsGamepadButtonJustPressed(c.gamepadID, 0) ||
-		inpututil.IsGamepadButtonJustPressed(c.gamepadID, 1)
+	return inpututil.IsGamepadButtonJustPressed(c.gamepadID, 1)
 }
 
 func (c *ControllerInput) IsSelectJustPressed() bool {
