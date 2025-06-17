@@ -214,3 +214,13 @@ func (c *ControllerInput) IsPauseJustPressed() bool {
 	return inpututil.IsGamepadButtonJustPressed(c.gamepadID, 7) ||
 		inpututil.IsGamepadButtonJustPressed(c.gamepadID, 6)
 }
+
+func (c *ControllerInput) IsRollJustPressed() bool {
+	if !c.isActive {
+		return false
+	}
+	if c.hasStandardLayout {
+		return inpututil.IsStandardGamepadButtonJustPressed(c.gamepadID, ebiten.StandardGamepadButtonRightBottom)
+	}
+	return inpututil.IsGamepadButtonJustPressed(c.gamepadID, 0)
+}

@@ -35,6 +35,9 @@ type Player struct {
 
 	Camera     *Camera
 	Controller *ControllerInput
+
+	IsRolling bool
+	RollTimer float64
 }
 
 const (
@@ -48,6 +51,8 @@ const (
 	MOVE_THRESHOLD         = 5.0
 	GROUND_TOLERANCE       = 2.0
 	MIN_VELOCITY_THRESHOLD = 10.0
+	ROLL_DURATION          = 0.7 // Increased from 0.4 for longer roll
+	ROLL_SPEED             = 500.0
 )
 
 func NewPlayer(x, y, worldWidth, worldHeight, groundLevel float64) *Player {
@@ -114,6 +119,13 @@ func (p *Player) updateTimers(deltaTime float64) {
 	if p.groundBuffer > 0 {
 		p.groundBuffer -= deltaTime
 	}
+
+	if p.RollTimer > 0 {
+		p.RollTimer -= deltaTime
+		if p.RollTimer <= 0 {
+			p.IsRolling = false
+		}
+	}
 }
 
 func (p *Player) handleInput(deltaTime float64) {
@@ -128,7 +140,27 @@ func (p *Player) handleInput(deltaTime float64) {
 	controllerJump := p.Controller.IsJumpJustPressed()
 	horizontalAxis := p.Controller.GetHorizontalAxis()
 
+	rollPressed := inpututil.IsKeyJustPressed(ebiten.KeyShift) || inpututil.IsKeyJustPressed(ebiten.KeyZ) || p.Controller.IsRollJustPressed()
+
 	const deadZone = 0.2
+
+	if !p.IsRolling && rollPressed && p.OnGround {
+		p.IsRolling = true
+		p.RollTimer = ROLL_DURATION
+		if p.FacingRight {
+			p.VelocityX = ROLL_SPEED
+		} else {
+			p.VelocityX = -ROLL_SPEED
+		}
+	}
+
+	if p.IsRolling {
+		p.RollTimer -= deltaTime
+		if p.RollTimer <= 0 {
+			p.IsRolling = false
+		}
+		return
+	}
 
 	if (leftPressed || controllerLeft) && !(rightPressed || controllerRight) {
 		if controllerLeft && !leftPressed && absFloat64(horizontalAxis) > deadZone {
@@ -218,6 +250,10 @@ func (p *Player) updatePhysics(deltaTime float64) {
 
 func (p *Player) updateAnimation() {
 	if p.AnimationManager != nil {
+		if p.IsRolling {
+			p.AnimationManager.SetAnimation("roll")
+			return
+		}
 		if !p.OnGround {
 			if p.VelocityY > 50 {
 				p.AnimationManager.SetAnimation("fall")
