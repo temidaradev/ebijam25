@@ -3,6 +3,7 @@ package src
 import (
 	"image/color"
 	"math"
+	"os"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
@@ -16,6 +17,7 @@ type MenuState int
 const (
 	MenuStateMain MenuState = iota
 	MenuStateSettings
+	MenuStatePause
 )
 
 type MenuItem struct {
@@ -25,28 +27,31 @@ type MenuItem struct {
 }
 
 type Menu struct {
-	state              MenuState
-	selectedIndex      int
-	menuItems          []MenuItem
-	settingsItems      []MenuItem
-	animationTime      float64
-	transitionAlpha    float64
-	backgroundAlpha    float64
-	startGameRequested bool
-	exitRequested      bool
-	isFullscreen       bool
-	scalingMode        int // 0=Aspect (F1), 1=Stretch (F2), 2=Pixel (F3)
+	state                     MenuState
+	previousState             MenuState
+	selectedIndex             int
+	menuItems                 []MenuItem
+	settingsItems             []MenuItem
+	pauseItems                []MenuItem
+	animationTime             float64
+	transitionAlpha           float64
+	backgroundAlpha           float64
+	startGameRequested        bool
+	exitRequested             bool
+	continueRequested         bool
+	fullscreenToggleRequested bool
+	controller                *ControllerInput
 }
 
 func NewMenu() *Menu {
 	m := &Menu{
 		state:           MenuStateMain,
+		previousState:   MenuStateMain,
 		selectedIndex:   0,
 		animationTime:   0,
 		transitionAlpha: 1.0,
 		backgroundAlpha: 0.8,
-		isFullscreen:    ebiten.IsFullscreen(),
-		scalingMode:     0, // Start with aspect ratio scaling
+		controller:      NewControllerInput(),
 	}
 
 	m.menuItems = []MenuItem{
@@ -54,7 +59,10 @@ func NewMenu() *Menu {
 			m.startGameRequested = true
 			return MenuStateMain
 		}},
-		{Text: "SETTINGS", Action: func() MenuState { return MenuStateSettings }},
+		{Text: "SETTINGS", Action: func() MenuState {
+			m.previousState = m.state
+			return MenuStateSettings
+		}},
 		{Text: "EXIT", Action: func() MenuState {
 			m.exitRequested = true
 			return MenuStateMain
@@ -62,79 +70,76 @@ func NewMenu() *Menu {
 	}
 
 	fullscreenText := "FULLSCREEN: OFF (F11)"
-	if m.isFullscreen {
+	if ebiten.IsFullscreen() {
 		fullscreenText = "FULLSCREEN: ON (F11)"
 	}
-
-	// Get current scaling mode
-	scalingModeText := m.getScalingModeText()
 
 	m.settingsItems = []MenuItem{
 		{Text: "MUSIC VOLUME: 100%", Action: func() MenuState { return MenuStateSettings }},
 		{Text: "SOUND EFFECTS: 100%", Action: func() MenuState { return MenuStateSettings }},
-		{Text: scalingModeText, Action: func() MenuState {
-			m.cycleScalingMode()
-			return MenuStateSettings
-		}},
 		{Text: fullscreenText, Action: func() MenuState {
-			m.toggleFullscreen()
+			m.fullscreenToggleRequested = true
 			return MenuStateSettings
 		}},
-		{Text: "BACK", Action: func() MenuState { return MenuStateMain }},
+		{Text: "BACK", Action: func() MenuState { return m.previousState }},
+	}
+
+	m.pauseItems = []MenuItem{
+		{Text: "CONTINUE", Action: func() MenuState {
+			m.continueRequested = true
+			return MenuStatePause
+		}},
+		{Text: "SETTINGS", Action: func() MenuState {
+			m.previousState = m.state
+			return MenuStateSettings
+		}},
+		{Text: "EXIT GAME", Action: func() MenuState {
+			os.Exit(0)
+			return MenuStatePause
+		}},
 	}
 
 	return m
 }
 
-func (m *Menu) toggleFullscreen() {
-	m.isFullscreen = !m.isFullscreen
-	ebiten.SetFullscreen(m.isFullscreen)
-
-	// Update the fullscreen text in settings
-	if m.isFullscreen {
-		m.settingsItems[3].Text = "FULLSCREEN: ON (F11)"
-	} else {
-		m.settingsItems[3].Text = "FULLSCREEN: OFF (F11)"
-	}
-}
-
 func (m *Menu) Update() error {
 	m.animationTime += 1.0 / 60.0
 
+	m.controller.Update()
+
 	currentItems := m.getCurrentMenuItems()
 
-	// Handle F key shortcuts
-	if inpututil.IsKeyJustPressed(ebiten.KeyF1) {
-		m.scalingMode = 0
-		m.applyScalingMode()
-	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyF2) {
-		m.scalingMode = 1
-		m.applyScalingMode()
-	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyF3) {
-		m.scalingMode = 2
-		m.applyScalingMode()
-	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyF11) {
-		m.toggleFullscreen()
+	if ebiten.IsFullscreen() {
+		m.settingsItems[2].Text = "FULLSCREEN: ON (F11)"
+	} else {
+		m.settingsItems[2].Text = "FULLSCREEN: OFF (F11)"
 	}
 
-	if inpututil.IsKeyJustPressed(ebiten.KeyArrowUp) || inpututil.IsKeyJustPressed(ebiten.KeyW) {
+	upPressed := inpututil.IsKeyJustPressed(ebiten.KeyArrowUp) || inpututil.IsKeyJustPressed(ebiten.KeyW)
+	downPressed := inpututil.IsKeyJustPressed(ebiten.KeyArrowDown) || inpututil.IsKeyJustPressed(ebiten.KeyS)
+	selectPressed := inpututil.IsKeyJustPressed(ebiten.KeyEnter) || inpututil.IsKeyJustPressed(ebiten.KeySpace)
+	backPressed := inpututil.IsKeyJustPressed(ebiten.KeyEscape)
+
+	upPressed = upPressed || m.controller.IsUpJustPressed()
+	downPressed = downPressed || m.controller.IsDownJustPressed()
+	selectPressed = selectPressed || m.controller.IsSelectJustPressed()
+	backPressed = backPressed || m.controller.IsBackJustPressed()
+
+	if upPressed {
 		m.selectedIndex--
 		if m.selectedIndex < 0 {
 			m.selectedIndex = len(currentItems) - 1
 		}
 	}
 
-	if inpututil.IsKeyJustPressed(ebiten.KeyArrowDown) || inpututil.IsKeyJustPressed(ebiten.KeyS) {
+	if downPressed {
 		m.selectedIndex++
 		if m.selectedIndex >= len(currentItems) {
 			m.selectedIndex = 0
 		}
 	}
 
-	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) || inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+	if selectPressed {
 		if m.selectedIndex < len(currentItems) {
 			newState := currentItems[m.selectedIndex].Action()
 			if newState != m.state {
@@ -144,8 +149,11 @@ func (m *Menu) Update() error {
 		}
 	}
 
-	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
-		if m.state != MenuStateMain {
+	if backPressed {
+		if m.state == MenuStateSettings {
+			m.state = m.previousState
+			m.selectedIndex = 0
+		} else if m.state != MenuStateMain {
 			m.state = MenuStateMain
 			m.selectedIndex = 0
 		}
@@ -165,6 +173,8 @@ func (m *Menu) Draw(screen *ebiten.Image) {
 		m.drawMainMenu(screen, screenWidth, screenHeight)
 	case MenuStateSettings:
 		m.drawSettingsMenu(screen, screenWidth, screenHeight)
+	case MenuStatePause:
+		m.drawPauseMenu(screen, screenWidth, screenHeight)
 	}
 }
 
@@ -189,6 +199,16 @@ func (m *Menu) drawSettingsMenu(screen *ebiten.Image, screenWidth, screenHeight 
 	esset.DrawText(screen, titleText, titleX, titleY, assets.FontFaceM, color.RGBA{255, 255, 255, 255})
 
 	m.drawMenuItems(screen, m.settingsItems, screenWidth, screenHeight)
+}
+
+func (m *Menu) drawPauseMenu(screen *ebiten.Image, screenWidth, screenHeight int) {
+	titleText := "PAUSED"
+	titleX := float64(screenWidth)*0.5 - 70
+	titleY := float64(screenHeight) * 0.25
+
+	esset.DrawText(screen, titleText, titleX, titleY, assets.FontFaceM, color.RGBA{255, 255, 255, 255})
+
+	m.drawMenuItems(screen, m.pauseItems, screenWidth, screenHeight)
 }
 
 func (m *Menu) drawMenuItems(screen *ebiten.Image, items []MenuItem, screenWidth, screenHeight int) {
@@ -231,10 +251,9 @@ func (m *Menu) drawMenuItems(screen *ebiten.Image, items []MenuItem, screenWidth
 		esset.DrawText(screen, item.Text, x, y, assets.FontFaceS, itemColor)
 	}
 
-	// Different hint text based on menu state
 	var hintText string
 	if m.state == MenuStateSettings {
-		hintText = "USE ARROW KEYS OR WASD TO NAVIGATE • ENTER/SPACE TO SELECT • ESC TO GO BACK • F1-F3 FOR SCALING • F11 FOR FULLSCREEN"
+		hintText = "USE ARROW KEYS OR WASD TO NAVIGATE • ENTER/SPACE TO SELECT • ESC TO GO BACK • F11 FOR FULLSCREEN"
 	} else {
 		hintText = "USE ARROW KEYS OR WASD TO NAVIGATE • ENTER/SPACE TO SELECT • ESC TO GO BACK"
 	}
@@ -249,6 +268,8 @@ func (m *Menu) getCurrentMenuItems() []MenuItem {
 	switch m.state {
 	case MenuStateSettings:
 		return m.settingsItems
+	case MenuStatePause:
+		return m.pauseItems
 	default:
 		return m.menuItems
 	}
@@ -274,42 +295,23 @@ func (m *Menu) IsExitSelected() bool {
 	return false
 }
 
-func (m *Menu) getScalingModeText() string {
-	switch m.scalingMode {
-	case 0:
-		return "SCALING: ASPECT RATIO (F1)"
-	case 1:
-		return "SCALING: STRETCH (F2)"
-	case 2:
-		return "SCALING: PIXEL PERFECT (F3)"
-	default:
-		return "SCALING: ASPECT RATIO (F1)"
+func (m *Menu) IsContinueRequested() bool {
+	if m.continueRequested {
+		m.continueRequested = false
+		return true
 	}
+	return false
 }
 
-func (m *Menu) cycleScalingMode() {
-	m.scalingMode = (m.scalingMode + 1) % 3
-	m.applyScalingMode()
+func (m *Menu) IsFullscreenToggleRequested() bool {
+	if m.fullscreenToggleRequested {
+		m.fullscreenToggleRequested = false
+		return true
+	}
+	return false
 }
 
-func (m *Menu) applyScalingMode() {
-	// Apply the scaling mode immediately
-	w, h := ebiten.WindowSize()
-	if ebiten.IsFullscreen() {
-		w, h = ebiten.Monitor().Size()
-	}
-
-	switch m.scalingMode {
-	case 0:
-		assets.UpdateDisplayConfig(w, h, assets.ScaleModeAspect, ebiten.IsFullscreen())
-	case 1:
-		assets.UpdateDisplayConfig(w, h, assets.ScaleModeStretch, ebiten.IsFullscreen())
-	case 2:
-		assets.UpdateDisplayConfig(w, h, assets.ScaleModePixel, ebiten.IsFullscreen())
-	}
-
-	// Update the menu text if we're in settings
-	if m.state == MenuStateSettings {
-		m.settingsItems[2].Text = m.getScalingModeText()
-	}
+func (m *Menu) SetPauseState() {
+	m.state = MenuStatePause
+	m.selectedIndex = 0
 }

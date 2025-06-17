@@ -11,7 +11,6 @@ import (
 	"github.com/temidaradev/esset/v2"
 )
 
-// GameState represents the current state of the game
 type GameState int
 
 const (
@@ -26,7 +25,8 @@ type Game struct {
 	parallaxOffset     float64
 	player             *Player
 	lastFrameTime      float64
-	currentEnvironment string // Current background environment
+	currentEnvironment string
+	controller         *ControllerInput
 }
 
 func init() {
@@ -35,32 +35,31 @@ func init() {
 }
 
 func NewGame() *Game {
-	// Use 1280x720 as the base game resolution
 	screenWidth, screenHeight := 1280, 720
 	groundLevel := float64(screenHeight) - 30
 
-	// Position player at ground level
-	playerStartX := 100.0            // 100 pixels from left edge
-	playerStartY := groundLevel - 25 // Start just above ground level
+	playerStartX := 100.0
+	playerStartY := groundLevel - 25
 
 	return &Game{
 		state:              GameStateMenu,
 		menu:               NewMenu(),
 		player:             NewPlayer(playerStartX, playerStartY, float64(screenWidth), float64(screenHeight), groundLevel),
 		lastFrameTime:      0,
-		currentEnvironment: "desert", // Start with desert environment
+		currentEnvironment: "desert",
+		controller:         NewControllerInput(),
 	}
 }
 
 func (g *Game) Update() error {
-	// Calculate delta time properly
-	deltaTime := 1.0 / 60.0 // Fixed 60 FPS delta time
+	g.controller.Update()
+
+	deltaTime := 1.0 / 60.0
 	if ebiten.ActualTPS() > 0 {
 		deltaTime = 1.0 / ebiten.ActualTPS()
 	}
-	// Clamp deltaTime to avoid huge jumps (e.g., after alt-tab)
 	if deltaTime > 1.0/20.0 {
-		deltaTime = 1.0 / 20.0 // Max 1/20th of a second per frame
+		deltaTime = 1.0 / 20.0
 	}
 
 	switch g.state {
@@ -76,11 +75,13 @@ func (g *Game) Update() error {
 		}
 
 	case GameStatePlaying:
-		if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+		pausePressed := inpututil.IsKeyJustPressed(ebiten.KeyEscape) || g.controller.IsPauseJustPressed()
+
+		if pausePressed {
 			g.state = GameStatePaused
+			g.menu.SetPauseState()
 		}
 
-		// Environment switching for testing
 		if inpututil.IsKeyJustPressed(ebiten.Key1) {
 			g.currentEnvironment = "desert"
 		}
@@ -93,10 +94,15 @@ func (g *Game) Update() error {
 
 		g.parallaxOffset += 0.5
 
-		// Update player
 		g.player.Update(deltaTime)
 
 	case GameStatePaused:
+		g.menu.Update()
+
+		if g.menu.IsContinueRequested() {
+			g.state = GameStatePlaying
+		}
+
 		if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 			g.state = GameStatePlaying
 		}
@@ -110,115 +116,84 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	switch g.state {
 	case GameStateMenu:
-		// Draw background layers for menu (static camera for menu)
 		layers := assets.GetLayersByEnvironment(g.currentEnvironment)
 		assets.DrawBackgroundLayers(screen, layers, g.parallaxOffset*0.1, 0, screenWidth, screenHeight)
 		g.menu.Draw(screen)
 
 	case GameStatePlaying:
-		// Get camera position from player's camera
 		camera := g.player.GetCamera()
 		cameraX, cameraY, _, _ := camera.GetView()
 
-		// Draw background layers with camera-based parallax
 		layers := assets.GetLayersByEnvironment(g.currentEnvironment)
 		assets.DrawBackgroundLayers(screen, layers, cameraX, cameraY, screenWidth, screenHeight)
 
-		// Draw ground line for debugging (in screen space, adjusted for camera)
 		groundY := float32(g.player.GroundLevel)
 		screenGroundX1, screenGroundY1 := camera.WorldToScreen(0, float64(groundY))
 		screenGroundX2, screenGroundY2 := camera.WorldToScreen(float64(screenWidth), float64(groundY))
 		vector.StrokeLine(screen, float32(screenGroundX1), float32(screenGroundY1), float32(screenGroundX2), float32(screenGroundY2), 2, color.RGBA{255, 0, 0, 255}, false)
 
-		// Draw player with camera transform
 		g.drawPlayerWithCamera(screen, camera)
 
-		// Debug: Draw player bounding box with camera transform
 		px, py, pw, ph := g.player.GetBounds()
 		screenPX, screenPY := camera.WorldToScreen(px, py)
 		vector.StrokeRect(screen, float32(screenPX), float32(screenPY), float32(pw), float32(ph), 1, color.RGBA{0, 255, 0, 255}, false)
 
-		// Draw UI elements (not affected by camera)
 		instructionsText := "Press 1=Desert, 2=Forest, 3=Mountains"
 		esset.DrawText(screen, instructionsText, 10, 10, assets.FontFaceS, color.RGBA{255, 255, 255, 255})
 
-		// Draw scaling instructions
-		scalingText := "F11=Fullscreen, F1=Aspect, F2=Stretch, F3=Pixel"
-		esset.DrawText(screen, scalingText, 10, 30, assets.FontFaceS, color.RGBA{200, 200, 200, 255})
-
-		// Draw camera debug info
 		cameraInfo := fmt.Sprintf("Camera: (%.1f, %.1f)", cameraX, cameraY)
-		esset.DrawText(screen, cameraInfo, 10, 50, assets.FontFaceS, color.RGBA{150, 150, 150, 255})
+		esset.DrawText(screen, cameraInfo, 10, 30, assets.FontFaceS, color.RGBA{150, 150, 150, 255})
 
-		// Draw player position info
 		playerInfo := fmt.Sprintf("Player: (%.1f, %.1f) Vel: (%.1f, %.1f)", g.player.X, g.player.Y, g.player.VelocityX, g.player.VelocityY)
-		esset.DrawText(screen, playerInfo, 10, 70, assets.FontFaceS, color.RGBA{150, 150, 150, 255})
+		esset.DrawText(screen, playerInfo, 10, 50, assets.FontFaceS, color.RGBA{150, 150, 150, 255})
 
 	case GameStatePaused:
-		// Get camera position from player's camera
 		camera := g.player.GetCamera()
 		cameraX, cameraY, _, _ := camera.GetView()
 
-		// Draw background layers (same as playing but static)
 		layers := assets.GetLayersByEnvironment(g.currentEnvironment)
 		assets.DrawBackgroundLayers(screen, layers, cameraX, cameraY, screenWidth, screenHeight)
 
-		// Draw ground line for debugging (in screen space, adjusted for camera)
 		groundY := float32(g.player.GroundLevel)
 		screenGroundX1, screenGroundY1 := camera.WorldToScreen(0, float64(groundY))
 		screenGroundX2, screenGroundY2 := camera.WorldToScreen(float64(screenWidth), float64(groundY))
 		vector.StrokeLine(screen, float32(screenGroundX1), float32(screenGroundY1), float32(screenGroundX2), float32(screenGroundY2), 2, color.RGBA{255, 0, 0, 255}, false)
 
-		// Draw player with camera transform
 		g.drawPlayerWithCamera(screen, camera)
 
-		// Debug: Draw player bounding box with camera transform
 		px, py, pw, ph := g.player.GetBounds()
 		screenPX, screenPY := camera.WorldToScreen(px, py)
 		vector.StrokeRect(screen, float32(screenPX), float32(screenPY), float32(pw), float32(ph), 1, color.RGBA{0, 255, 0, 255}, false)
 
-		vector.DrawFilledRect(screen, 0, 0, float32(screenWidth), float32(screenHeight),
-			color.RGBA{0, 0, 0, 128}, false)
-
-		pausedText := "PAUSED"
-		pausedX := float64(screenWidth) * 0.025
-		pausedY := float64(screenHeight) * 0.4
-		esset.DrawText(screen, pausedText, pausedX, pausedY, assets.FontFaceM, color.RGBA{255, 255, 255, 255})
-
-		hintText := "PRESS ESC TO RESUME"
-		hintX := float64(screenWidth) * 0.025
-		hintY := float64(screenHeight) * 0.5
-		esset.DrawText(screen, hintText, hintX, hintY, assets.FontFaceS, color.RGBA{200, 200, 200, 255})
+		g.menu.Draw(screen)
 	}
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return outsideWidth, outsideHeight
+	return 1280, 720
 }
 
 func (g *Game) GetState() GameState {
 	return g.state
 }
 
-// drawPlayerWithCamera draws the player with proper camera transforms
+func (g *Game) IsFullscreenToggleRequested() bool {
+	return g.menu.IsFullscreenToggleRequested()
+}
+
 func (g *Game) drawPlayerWithCamera(screen *ebiten.Image, camera *Camera) {
 	if g.player.AnimationManager != nil {
-		// Use simple animation system with camera transform
 		op := &ebiten.DrawImageOptions{}
 
-		// Apply player scale
 		op.GeoM.Scale(g.player.Scale, g.player.Scale)
 
-		// Flip horizontally if facing left
 		if !g.player.FacingRight {
 			op.GeoM.Scale(-1, 1)
-			op.GeoM.Translate(50*g.player.Scale, 0) // 50 is sprite width
+			op.GeoM.Translate(50*g.player.Scale, 0)
 		}
 
-		// Apply world position
 		op.GeoM.Translate(g.player.X, g.player.Y)
 
-		// Apply camera transform
 		cameraTransform := camera.GetTransform()
 		op.GeoM.Concat(*cameraTransform)
 

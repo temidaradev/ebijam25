@@ -19,10 +19,8 @@ type Player struct {
 	FacingRight bool
 	Scale       float64
 
-	// Simple animation system
 	AnimationManager *assets.SimpleAnimationManager
 
-	// Better physics properties
 	MaxSpeed       float64
 	Deceleration   float64
 	JumpBufferTime float64
@@ -31,33 +29,31 @@ type Player struct {
 	jumpBuffer     float64
 	coyoteBuffer   float64
 
-	// World boundaries
 	WorldWidth  float64
 	WorldHeight float64
 	GroundLevel float64
 
-	Camera *Camera // Camera that follows the player
+	Camera     *Camera
+	Controller *ControllerInput
 }
 
 const (
 	GRAVITY                = 1200.0
-	SPRITE_WIDTH           = 50   // Adventurer sprite width
-	SPRITE_HEIGHT          = 37   // Adventurer sprite height
-	HITBOX_WIDTH           = 30   // Smaller hitbox width for collision
-	HITBOX_HEIGHT          = 32   // Smaller hitbox height for collision
-	HITBOX_OFFSET_X        = 10   // Offset to center hitbox horizontally
-	HITBOX_OFFSET_Y        = 5    // Offset to center hitbox vertically
-	MOVE_THRESHOLD         = 5.0  // Threshold for movement animation
-	GROUND_TOLERANCE       = 2.0  // Tolerance for ground detection
-	MIN_VELOCITY_THRESHOLD = 10.0 // Minimum velocity before stopping completely
+	SPRITE_WIDTH           = 50
+	SPRITE_HEIGHT          = 37
+	HITBOX_WIDTH           = 20
+	HITBOX_HEIGHT          = 32
+	HITBOX_OFFSET_X        = 14
+	HITBOX_OFFSET_Y        = 5
+	MOVE_THRESHOLD         = 5.0
+	GROUND_TOLERANCE       = 2.0
+	MIN_VELOCITY_THRESHOLD = 10.0
 )
 
 func NewPlayer(x, y, worldWidth, worldHeight, groundLevel float64) *Player {
-	// Initialize simple animation system
 	animManager := assets.InitCharacterAnimations()
 
-	// Set animation speed for more natural feel
-	animManager.SetAnimationSpeed(1.0) // Normal animation speed
+	animManager.SetAnimationSpeed(1.0)
 
 	player := &Player{
 		X:                x,
@@ -80,7 +76,8 @@ func NewPlayer(x, y, worldWidth, worldHeight, groundLevel float64) *Player {
 		WorldWidth:       worldWidth,
 		WorldHeight:      worldHeight,
 		GroundLevel:      groundLevel,
-		Camera:           NewCamera(1280, 720, 0, worldHeight), // Updated to 1280x720 viewport
+		Camera:           NewCamera(1280, 720, 0, worldHeight),
+		Controller:       NewControllerInput(),
 	}
 
 	return player
@@ -88,16 +85,17 @@ func NewPlayer(x, y, worldWidth, worldHeight, groundLevel float64) *Player {
 
 func (p *Player) Update(deltaTime float64) {
 	p.updateTimers(deltaTime)
+
+	p.Controller.Update()
+
 	p.handleInput(deltaTime)
 	p.updatePhysics(deltaTime)
 	p.updateAnimation()
 
-	// Update the animation system
 	if p.AnimationManager != nil {
 		p.AnimationManager.Update(deltaTime)
 	}
 
-	// Update camera to follow player with velocity-based look-ahead
 	if p.Camera != nil {
 		p.Camera.Follow(p.X+(float64(SPRITE_WIDTH)*p.Scale/2), p.Y+(float64(SPRITE_HEIGHT)*p.Scale/2), p.VelocityX, p.VelocityY)
 		p.Camera.Update(deltaTime)
@@ -105,44 +103,61 @@ func (p *Player) Update(deltaTime float64) {
 }
 
 func (p *Player) updateTimers(deltaTime float64) {
-	// Update jump buffer
 	if p.jumpBuffer > 0 {
 		p.jumpBuffer -= deltaTime
 	}
 
-	// Update coyote time
 	if p.coyoteBuffer > 0 {
 		p.coyoteBuffer -= deltaTime
 	}
 
-	// Update ground buffer
 	if p.groundBuffer > 0 {
 		p.groundBuffer -= deltaTime
 	}
 }
 
 func (p *Player) handleInput(deltaTime float64) {
-	// Handle horizontal movement with immediate velocity (no acceleration)
 	leftPressed := ebiten.IsKeyPressed(ebiten.KeyA) || ebiten.IsKeyPressed(ebiten.KeyArrowLeft)
 	rightPressed := ebiten.IsKeyPressed(ebiten.KeyD) || ebiten.IsKeyPressed(ebiten.KeyArrowRight)
+	jumpPressed := inpututil.IsKeyJustPressed(ebiten.KeySpace) ||
+		inpututil.IsKeyJustPressed(ebiten.KeyW) ||
+		inpututil.IsKeyJustPressed(ebiten.KeyArrowUp)
 
-	if leftPressed && !rightPressed {
-		// Immediate left movement
-		p.VelocityX = -p.MaxSpeed
+	controllerLeft := p.Controller.IsLeftPressed()
+	controllerRight := p.Controller.IsRightPressed()
+	controllerJump := p.Controller.IsJumpJustPressed()
+	horizontalAxis := p.Controller.GetHorizontalAxis()
+
+	const deadZone = 0.2
+
+	if (leftPressed || controllerLeft) && !(rightPressed || controllerRight) {
+		if controllerLeft && !leftPressed && absFloat64(horizontalAxis) > deadZone {
+			intensity := absFloat64(horizontalAxis)
+			if intensity > 1.0 {
+				intensity = 1.0
+			}
+			p.VelocityX = -p.MaxSpeed * intensity
+		} else {
+			p.VelocityX = -p.MaxSpeed
+		}
 		p.FacingRight = false
-	} else if rightPressed && !leftPressed {
-		// Immediate right movement
-		p.VelocityX = p.MaxSpeed
+	} else if (rightPressed || controllerRight) && !(leftPressed || controllerLeft) {
+		if controllerRight && !rightPressed && absFloat64(horizontalAxis) > deadZone {
+			intensity := absFloat64(horizontalAxis)
+			if intensity > 1.0 {
+				intensity = 1.0
+			}
+			p.VelocityX = p.MaxSpeed * intensity
+		} else {
+			p.VelocityX = p.MaxSpeed
+		}
 		p.FacingRight = true
 	} else {
-		// More aggressive deceleration when no input to reduce sliding
 		var decelAmount float64
 		if p.OnGround {
-			// Ground friction - much stronger deceleration when on ground
-			decelAmount = p.Deceleration * 1.8 * deltaTime // 80% stronger on ground
+			decelAmount = p.Deceleration * 1.8 * deltaTime
 		} else {
-			// Air resistance - normal deceleration in air
-			decelAmount = p.Deceleration * 0.3 * deltaTime // Reduced in air for better air control
+			decelAmount = p.Deceleration * 0.3 * deltaTime
 		}
 
 		if p.VelocityX > decelAmount {
@@ -150,25 +165,18 @@ func (p *Player) handleInput(deltaTime float64) {
 		} else if p.VelocityX < -decelAmount {
 			p.VelocityX += decelAmount
 		} else {
-			p.VelocityX = 0 // Stop completely when velocity is very small
+			p.VelocityX = 0
 		}
 
-		// Additional check: stop completely if velocity is below minimum threshold
 		if absFloat64(p.VelocityX) < MIN_VELOCITY_THRESHOLD {
 			p.VelocityX = 0
 		}
 	}
 
-	// Handle jumping with buffer and coyote time
-	jumpPressed := inpututil.IsKeyJustPressed(ebiten.KeySpace) ||
-		inpututil.IsKeyJustPressed(ebiten.KeyW) ||
-		inpututil.IsKeyJustPressed(ebiten.KeyArrowUp)
-
-	if jumpPressed {
+	if jumpPressed || controllerJump {
 		p.jumpBuffer = p.JumpBufferTime
 	}
 
-	// Perform jump if conditions are met
 	if p.jumpBuffer > 0 && (p.OnGround || p.coyoteBuffer > 0) {
 		p.VelocityY = p.JumpPower
 		p.OnGround = false
@@ -178,22 +186,18 @@ func (p *Player) handleInput(deltaTime float64) {
 }
 
 func (p *Player) updatePhysics(deltaTime float64) {
-	// Store previous ground state for coyote time
 	wasOnGround := p.OnGround
 
-	// Apply gravity when not on ground
 	if !p.OnGround {
 		p.VelocityY += GRAVITY * deltaTime
 	}
 
-	// Update position
 	p.X += p.VelocityX * deltaTime
 	p.Y += p.VelocityY * deltaTime
 
-	// Ground collision detection - check if player's hitbox bottom edge hits ground
 	hitboxBottom := p.Y + float64(HITBOX_OFFSET_Y)*p.Scale + (float64(HITBOX_HEIGHT) * p.Scale)
 	if hitboxBottom >= p.GroundLevel {
-		p.Y = p.GroundLevel - float64(HITBOX_OFFSET_Y)*p.Scale - (float64(HITBOX_HEIGHT) * p.Scale) // Position player on top of ground
+		p.Y = p.GroundLevel - float64(HITBOX_OFFSET_Y)*p.Scale - (float64(HITBOX_HEIGHT) * p.Scale)
 		p.VelocityY = 0
 		p.OnGround = true
 		p.groundBuffer = 0.05
@@ -205,18 +209,6 @@ func (p *Player) updatePhysics(deltaTime float64) {
 		p.coyoteBuffer = p.CoyoteTime
 	}
 
-	// Horizontal bounds checking using hitbox (REMOVED for limitless map)
-	// hitboxWidth := float64(HITBOX_WIDTH) * p.Scale
-	// hitboxOffsetX := float64(HITBOX_OFFSET_X) * p.Scale
-	// if p.X+hitboxOffsetX < 0 {
-	// 	p.X = -hitboxOffsetX
-	// 	p.VelocityX = 0
-	// } else if p.X+hitboxOffsetX+hitboxWidth > p.WorldWidth {
-	// 	p.X = p.WorldWidth - hitboxWidth - hitboxOffsetX
-	// 	p.VelocityX = 0
-	// }
-
-	// Vertical bounds checking (prevent falling through world)
 	if p.Y > p.WorldHeight {
 		p.Y = p.GroundLevel - float64(HITBOX_OFFSET_Y)*p.Scale - (float64(HITBOX_HEIGHT) * p.Scale)
 		p.VelocityY = 0
@@ -226,22 +218,19 @@ func (p *Player) updatePhysics(deltaTime float64) {
 
 func (p *Player) updateAnimation() {
 	if p.AnimationManager != nil {
-		// More precise animation state detection
 		if !p.OnGround {
-			// Airborne animations - more responsive to velocity changes
-			if p.VelocityY > 50 { // Only fall animation when falling fast enough
+			if p.VelocityY > 50 {
 				p.AnimationManager.SetAnimation("fall")
 			} else {
 				p.AnimationManager.SetAnimation("jump")
 			}
 		} else {
-			// Ground animations - distinguish between different movement speeds
 			speed := absFloat64(p.VelocityX)
-			if speed > p.MaxSpeed*0.7 { // High speed = run
+			if speed > p.MaxSpeed*0.7 {
 				p.AnimationManager.SetAnimation("run")
-			} else if speed > MIN_VELOCITY_THRESHOLD { // Medium speed = walk (using min threshold)
+			} else if speed > MIN_VELOCITY_THRESHOLD {
 				p.AnimationManager.SetAnimation("walk")
-			} else { // Low/no speed = idle (more immediate idle detection)
+			} else {
 				p.AnimationManager.SetAnimation("idle")
 			}
 		}
@@ -250,28 +239,22 @@ func (p *Player) updateAnimation() {
 
 func (p *Player) Draw(screen *ebiten.Image) {
 	if p.AnimationManager != nil {
-		// Use simple animation system
 		op := &ebiten.DrawImageOptions{}
 
-		// Apply scale
 		op.GeoM.Scale(p.Scale, p.Scale)
 
-		// Flip horizontally if facing left
 		if !p.FacingRight {
 			op.GeoM.Scale(-1, 1)
 			op.GeoM.Translate(float64(SPRITE_WIDTH)*p.Scale, 0)
 		}
 
-		// Apply position
 		op.GeoM.Translate(p.X, p.Y)
 
 		p.AnimationManager.DrawWithOptions(screen, op)
 	} else {
-		// Fallback: draw the first frame of the sprite sheet
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Scale(p.Scale, p.Scale)
 
-		// Flip horizontally if facing left
 		if !p.FacingRight {
 			op.GeoM.Scale(-1, 1)
 			op.GeoM.Translate(float64(SPRITE_WIDTH)*p.Scale, 0)
@@ -279,13 +262,11 @@ func (p *Player) Draw(screen *ebiten.Image) {
 
 		op.GeoM.Translate(p.X, p.Y)
 
-		// Draw just the first frame (0, 0, 50, 37) from the sprite sheet
 		firstFrame := assets.CharacterSpritesheet.SubImage(image.Rect(0, 0, SPRITE_WIDTH, SPRITE_HEIGHT)).(*ebiten.Image)
 		screen.DrawImage(firstFrame, op)
 	}
 }
 
-// GetBounds returns the player's bounding rectangle for collision detection
 func (p *Player) GetBounds() (x, y, width, height float64) {
 	hitboxWidth := float64(HITBOX_WIDTH) * p.Scale
 	hitboxHeight := float64(HITBOX_HEIGHT) * p.Scale
@@ -294,46 +275,38 @@ func (p *Player) GetBounds() (x, y, width, height float64) {
 	return p.X + offsetX, p.Y + offsetY, hitboxWidth, hitboxHeight
 }
 
-// SetPosition sets the player's position
 func (p *Player) SetPosition(x, y float64) {
 	p.X = x
 	p.Y = y
 }
 
-// GetPosition returns the player's current position
 func (p *Player) GetPosition() (x, y float64) {
 	return p.X, p.Y
 }
 
-// SetWorldBounds updates the world boundaries
 func (p *Player) SetWorldBounds(width, height, groundLevel float64) {
 	p.WorldWidth = width
 	p.WorldHeight = height
 	p.GroundLevel = groundLevel
 }
 
-// IsOnGround returns whether the player is currently on the ground
 func (p *Player) IsOnGround() bool {
 	return p.OnGround
 }
 
-// GetVelocity returns the player's current velocity
 func (p *Player) GetVelocity() (vx, vy float64) {
 	return p.VelocityX, p.VelocityY
 }
 
-// SetVelocity sets the player's velocity (useful for external forces)
 func (p *Player) SetVelocity(vx, vy float64) {
 	p.VelocityX = vx
 	p.VelocityY = vy
 }
 
-// GetCamera returns the player's camera for external use
 func (p *Player) GetCamera() *Camera {
 	return p.Camera
 }
 
-// SetCameraSettings allows fine-tuning camera behavior
 func (p *Player) SetCameraSettings(followSpeed, lookAhead, deadZone, verticalOffset float64) {
 	if p.Camera != nil {
 		p.Camera.FollowSpeed = followSpeed
@@ -343,7 +316,6 @@ func (p *Player) SetCameraSettings(followSpeed, lookAhead, deadZone, verticalOff
 	}
 }
 
-// Helper function for absolute value
 func absFloat64(x float64) float64 {
 	if x < 0 {
 		return -x
