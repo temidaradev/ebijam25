@@ -203,7 +203,7 @@ func (m *Menu) drawSettingsMenu(screen *ebiten.Image, screenWidth, screenHeight 
 
 func (m *Menu) drawPauseMenu(screen *ebiten.Image, screenWidth, screenHeight int) {
 	titleText := "PAUSED"
-	titleX := float64(screenWidth)*0.5 - 70
+	titleX := float64(screenWidth) * 0.025
 	titleY := float64(screenHeight) * 0.25
 
 	esset.DrawText(screen, titleText, titleX, titleY, assets.FontFaceM, color.RGBA{255, 255, 255, 255})
