@@ -55,6 +55,45 @@ var (
 	MountainsCloudsMg2   = esset.GetAsset(assets, "images/backgrounds/mountains/clouds_mg_2.png")
 	MountainsCloudsMg1   = esset.GetAsset(assets, "images/backgrounds/mountains/clouds_mg_1.png")
 	MountainsCloudLonely = esset.GetAsset(assets, "images/backgrounds/mountains/cloud_lonely.png")
+
+	Cave1 = esset.GetAsset(assets, "images/backgrounds/cave/1.png")
+	Cave2 = esset.GetAsset(assets, "images/backgrounds/cave/2.png")
+	Cave3 = esset.GetAsset(assets, "images/backgrounds/cave/3.png")
+	Cave4 = esset.GetAsset(assets, "images/backgrounds/cave/4.png")
+	Cave5 = esset.GetAsset(assets, "images/backgrounds/cave/5.png")
+	Cave6 = esset.GetAsset(assets, "images/backgrounds/cave/6.png")
+	Cave7 = esset.GetAsset(assets, "images/backgrounds/cave/7.png")
+
+	// Forest tiles
+	ForestGround1  = esset.GetAsset(assets, "images/backgrounds/forest-tiles/ground_1.png")
+	ForestGround2  = esset.GetAsset(assets, "images/backgrounds/forest-tiles/ground_2.png")
+	ForestGround3  = esset.GetAsset(assets, "images/backgrounds/forest-tiles/ground_3.png")
+	ForestGround4  = esset.GetAsset(assets, "images/backgrounds/forest-tiles/ground_4.png")
+	ForestGround5  = esset.GetAsset(assets, "images/backgrounds/forest-tiles/ground_5.png")
+	ForestGround6  = esset.GetAsset(assets, "images/backgrounds/forest-tiles/ground_6.png")
+	ForestGround7  = esset.GetAsset(assets, "images/backgrounds/forest-tiles/ground_7.png")
+	ForestGround8  = esset.GetAsset(assets, "images/backgrounds/forest-tiles/ground_8.png")
+	ForestGround9  = esset.GetAsset(assets, "images/backgrounds/forest-tiles/ground_9.png")
+	ForestGround10 = esset.GetAsset(assets, "images/backgrounds/forest-tiles/ground_10.png")
+	ForestGround11 = esset.GetAsset(assets, "images/backgrounds/forest-tiles/ground_11.png")
+
+	// Desert tiles
+	DesertTile1  = esset.GetAsset(assets, "images/backgrounds/desert-tiles/1.png")
+	DesertTile2  = esset.GetAsset(assets, "images/backgrounds/desert-tiles/2.png")
+	DesertTile3  = esset.GetAsset(assets, "images/backgrounds/desert-tiles/3.png")
+	DesertTile4  = esset.GetAsset(assets, "images/backgrounds/desert-tiles/4.png")
+	DesertTile5  = esset.GetAsset(assets, "images/backgrounds/desert-tiles/5.png")
+	DesertTile6  = esset.GetAsset(assets, "images/backgrounds/desert-tiles/6.png")
+	DesertTile7  = esset.GetAsset(assets, "images/backgrounds/desert-tiles/7.png")
+	DesertTile8  = esset.GetAsset(assets, "images/backgrounds/desert-tiles/8.png")
+	DesertTile9  = esset.GetAsset(assets, "images/backgrounds/desert-tiles/9.png")
+	DesertTile10 = esset.GetAsset(assets, "images/backgrounds/desert-tiles/10.png")
+	DesertTile11 = esset.GetAsset(assets, "images/backgrounds/desert-tiles/11.png")
+	DesertTile12 = esset.GetAsset(assets, "images/backgrounds/desert-tiles/12.png")
+	DesertTile13 = esset.GetAsset(assets, "images/backgrounds/desert-tiles/13.png")
+	DesertTile14 = esset.GetAsset(assets, "images/backgrounds/desert-tiles/14.png")
+	DesertTile15 = esset.GetAsset(assets, "images/backgrounds/desert-tiles/15.png")
+	DesertTile16 = esset.GetAsset(assets, "images/backgrounds/desert-tiles/16.png")
 )
 
 func InitCharacterAnimations() *SimpleAnimationManager {
@@ -343,7 +382,7 @@ type BackgroundLayer struct {
 	Name      string
 	ParallaxX float64
 	ParallaxY float64
-	ZDepth    int
+	ZDepth    float64
 	OffsetX   float64
 	OffsetY   float64
 	RepeatX   bool
@@ -383,6 +422,36 @@ func MountainsLayers() []BackgroundLayer {
 	}
 }
 
+func CaveLayers() []BackgroundLayer {
+	getScaleAndOffset := func(img *ebiten.Image) (float64, float64, float64) {
+		if img == nil {
+			return 1, 1, 0
+		}
+		w, h := img.Bounds().Dx(), img.Bounds().Dy()
+		scale := float64(WindowWidth) / float64(w)
+		height := float64(h) * scale
+		offsetY := float64(WindowHeight) - height
+		return scale, scale, offsetY
+	}
+
+	sx7, sy7, oy7 := getScaleAndOffset(Cave7)
+	sx6, sy6, oy6 := getScaleAndOffset(Cave6)
+	sx5, sy5, oy5 := getScaleAndOffset(Cave5)
+	sx4, sy4, oy4 := getScaleAndOffset(Cave4)
+	sx3, sy3, oy3 := getScaleAndOffset(Cave3)
+	sx2, sy2, oy2 := getScaleAndOffset(Cave2)
+
+	return []BackgroundLayer{
+		// Furthest to closest, all repeat except the closest
+		{Cave7, "cave_7", 0.05, 0.01, -6, 0, oy7, true, false, sx7, sy7},
+		{Cave6, "cave_6", 0.10, 0.03, -5, 0, oy6, true, false, sx6, sy6},
+		{Cave5, "cave_5", 0.15, 0.06, -4, 0, oy5, true, false, sx5, sy5},
+		{Cave4, "cave_4", 0.20, 0.10, -3, 0, oy4, true, false, sx4, sy4},
+		{Cave3, "cave_3", 0.30, 0.15, -2, 0, oy3, true, false, sx3, sy3},
+		{Cave2, "cave_2", 0.40, 0.20, -1, 0, oy2, false, false, sx2, sy2},
+	}
+}
+
 func GetLayersByEnvironment(environment string) []BackgroundLayer {
 	switch environment {
 	case "desert":
@@ -391,6 +460,8 @@ func GetLayersByEnvironment(environment string) []BackgroundLayer {
 		return ForestLayers()
 	case "mountains":
 		return MountainsLayers()
+	case "cave":
+		return CaveLayers()
 	default:
 		return DesertLayers()
 	}

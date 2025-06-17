@@ -46,7 +46,7 @@ func NewGame() *Game {
 		menu:               NewMenu(),
 		player:             NewPlayer(playerStartX, playerStartY, float64(screenWidth), float64(screenHeight), groundLevel),
 		lastFrameTime:      0,
-		currentEnvironment: "desert",
+		currentEnvironment: "forest",
 		controller:         NewControllerInput(),
 	}
 }
@@ -90,6 +90,9 @@ func (g *Game) Update() error {
 		}
 		if inpututil.IsKeyJustPressed(ebiten.Key3) {
 			g.currentEnvironment = "mountains"
+		}
+		if inpututil.IsKeyJustPressed(ebiten.Key4) {
+			g.currentEnvironment = "cave"
 		}
 
 		g.parallaxOffset += 0.5
@@ -138,14 +141,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		screenPX, screenPY := camera.WorldToScreen(px, py)
 		vector.StrokeRect(screen, float32(screenPX), float32(screenPY), float32(pw), float32(ph), 1, color.RGBA{0, 255, 0, 255}, false)
 
-		instructionsText := "Press 1=Desert, 2=Forest, 3=Mountains"
-		esset.DrawText(screen, instructionsText, 10, 10, assets.FontFaceS, color.RGBA{255, 255, 255, 255})
-
-		cameraInfo := fmt.Sprintf("Camera: (%.1f, %.1f)", cameraX, cameraY)
-		esset.DrawText(screen, cameraInfo, 10, 30, assets.FontFaceS, color.RGBA{150, 150, 150, 255})
-
-		playerInfo := fmt.Sprintf("Player: (%.1f, %.1f) Vel: (%.1f, %.1f)", g.player.X, g.player.Y, g.player.VelocityX, g.player.VelocityY)
-		esset.DrawText(screen, playerInfo, 10, 50, assets.FontFaceS, color.RGBA{150, 150, 150, 255})
+		// Draw FPS and TPS only
+		fps := ebiten.ActualFPS()
+		tps := ebiten.ActualTPS()
+		fpsTpsText := fmt.Sprintf("FPS: %.0f  TPS: %.0f", fps, tps)
+		esset.DrawText(screen, fpsTpsText, 10, 10, assets.FontFaceS, color.RGBA{255, 255, 255, 255})
 
 	case GameStatePaused:
 		camera := g.player.GetCamera()
@@ -165,6 +165,13 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		screenPX, screenPY := camera.WorldToScreen(px, py)
 		vector.StrokeRect(screen, float32(screenPX), float32(screenPY), float32(pw), float32(ph), 1, color.RGBA{0, 255, 0, 255}, false)
 
+		// Draw FPS and TPS only
+		fps := ebiten.ActualFPS()
+		tps := ebiten.ActualTPS()
+		fpsTpsText := fmt.Sprintf("FPS: %.0f  TPS: %.0f", fps, tps)
+		esset.DrawText(screen, fpsTpsText, 10, 10, assets.FontFaceS, color.RGBA{255, 255, 255, 255})
+
+		// Draw the pause menu overlay
 		g.menu.Draw(screen)
 	}
 }
