@@ -5,15 +5,19 @@ import (
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
+	"io/fs"
+	"log"
+	"path/filepath"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
+	"github.com/lafriks/go-tiled"
 	"github.com/temidaradev/esset/v2"
 )
 
 const (
-	WindowWidth  = 1280
-	WindowHeight = 720
+	WindowWidth800  = 1280
+	WindowHeight600 = 720
 )
 
 //go:embed *
@@ -55,45 +59,6 @@ var (
 	MountainsCloudsMg2   = esset.GetAsset(assets, "images/backgrounds/mountains/clouds_mg_2.png")
 	MountainsCloudsMg1   = esset.GetAsset(assets, "images/backgrounds/mountains/clouds_mg_1.png")
 	MountainsCloudLonely = esset.GetAsset(assets, "images/backgrounds/mountains/cloud_lonely.png")
-
-	Cave1 = esset.GetAsset(assets, "images/backgrounds/cave/1.png")
-	Cave2 = esset.GetAsset(assets, "images/backgrounds/cave/2.png")
-	Cave3 = esset.GetAsset(assets, "images/backgrounds/cave/3.png")
-	Cave4 = esset.GetAsset(assets, "images/backgrounds/cave/4.png")
-	Cave5 = esset.GetAsset(assets, "images/backgrounds/cave/5.png")
-	Cave6 = esset.GetAsset(assets, "images/backgrounds/cave/6.png")
-	Cave7 = esset.GetAsset(assets, "images/backgrounds/cave/7.png")
-
-	// Forest tiles
-	ForestGround1  = esset.GetAsset(assets, "images/backgrounds/forest-tiles/ground_1.png")
-	ForestGround2  = esset.GetAsset(assets, "images/backgrounds/forest-tiles/ground_2.png")
-	ForestGround3  = esset.GetAsset(assets, "images/backgrounds/forest-tiles/ground_3.png")
-	ForestGround4  = esset.GetAsset(assets, "images/backgrounds/forest-tiles/ground_4.png")
-	ForestGround5  = esset.GetAsset(assets, "images/backgrounds/forest-tiles/ground_5.png")
-	ForestGround6  = esset.GetAsset(assets, "images/backgrounds/forest-tiles/ground_6.png")
-	ForestGround7  = esset.GetAsset(assets, "images/backgrounds/forest-tiles/ground_7.png")
-	ForestGround8  = esset.GetAsset(assets, "images/backgrounds/forest-tiles/ground_8.png")
-	ForestGround9  = esset.GetAsset(assets, "images/backgrounds/forest-tiles/ground_9.png")
-	ForestGround10 = esset.GetAsset(assets, "images/backgrounds/forest-tiles/ground_10.png")
-	ForestGround11 = esset.GetAsset(assets, "images/backgrounds/forest-tiles/ground_11.png")
-
-	// Desert tiles
-	DesertTile1  = esset.GetAsset(assets, "images/backgrounds/desert-tiles/1.png")
-	DesertTile2  = esset.GetAsset(assets, "images/backgrounds/desert-tiles/2.png")
-	DesertTile3  = esset.GetAsset(assets, "images/backgrounds/desert-tiles/3.png")
-	DesertTile4  = esset.GetAsset(assets, "images/backgrounds/desert-tiles/4.png")
-	DesertTile5  = esset.GetAsset(assets, "images/backgrounds/desert-tiles/5.png")
-	DesertTile6  = esset.GetAsset(assets, "images/backgrounds/desert-tiles/6.png")
-	DesertTile7  = esset.GetAsset(assets, "images/backgrounds/desert-tiles/7.png")
-	DesertTile8  = esset.GetAsset(assets, "images/backgrounds/desert-tiles/8.png")
-	DesertTile9  = esset.GetAsset(assets, "images/backgrounds/desert-tiles/9.png")
-	DesertTile10 = esset.GetAsset(assets, "images/backgrounds/desert-tiles/10.png")
-	DesertTile11 = esset.GetAsset(assets, "images/backgrounds/desert-tiles/11.png")
-	DesertTile12 = esset.GetAsset(assets, "images/backgrounds/desert-tiles/12.png")
-	DesertTile13 = esset.GetAsset(assets, "images/backgrounds/desert-tiles/13.png")
-	DesertTile14 = esset.GetAsset(assets, "images/backgrounds/desert-tiles/14.png")
-	DesertTile15 = esset.GetAsset(assets, "images/backgrounds/desert-tiles/15.png")
-	DesertTile16 = esset.GetAsset(assets, "images/backgrounds/desert-tiles/16.png")
 )
 
 func InitCharacterAnimations() *SimpleAnimationManager {
@@ -382,7 +347,7 @@ type BackgroundLayer struct {
 	Name      string
 	ParallaxX float64
 	ParallaxY float64
-	ZDepth    float64
+	ZDepth    int
 	OffsetX   float64
 	OffsetY   float64
 	RepeatX   bool
@@ -422,36 +387,6 @@ func MountainsLayers() []BackgroundLayer {
 	}
 }
 
-func CaveLayers() []BackgroundLayer {
-	getScaleAndOffset := func(img *ebiten.Image) (float64, float64, float64) {
-		if img == nil {
-			return 1, 1, 0
-		}
-		w, h := img.Bounds().Dx(), img.Bounds().Dy()
-		scale := float64(WindowWidth) / float64(w)
-		height := float64(h) * scale
-		offsetY := float64(WindowHeight) - height
-		return scale, scale, offsetY
-	}
-
-	sx7, sy7, oy7 := getScaleAndOffset(Cave7)
-	sx6, sy6, oy6 := getScaleAndOffset(Cave6)
-	sx5, sy5, oy5 := getScaleAndOffset(Cave5)
-	sx4, sy4, oy4 := getScaleAndOffset(Cave4)
-	sx3, sy3, oy3 := getScaleAndOffset(Cave3)
-	sx2, sy2, oy2 := getScaleAndOffset(Cave2)
-
-	return []BackgroundLayer{
-		// Furthest to closest, all repeat except the closest
-		{Cave7, "cave_7", 0.05, 0.01, -6, 0, oy7, true, false, sx7, sy7},
-		{Cave6, "cave_6", 0.10, 0.03, -5, 0, oy6, true, false, sx6, sy6},
-		{Cave5, "cave_5", 0.15, 0.06, -4, 0, oy5, true, false, sx5, sy5},
-		{Cave4, "cave_4", 0.20, 0.10, -3, 0, oy4, true, false, sx4, sy4},
-		{Cave3, "cave_3", 0.30, 0.15, -2, 0, oy3, true, false, sx3, sy3},
-		{Cave2, "cave_2", 0.40, 0.20, -1, 0, oy2, false, false, sx2, sy2},
-	}
-}
-
 func GetLayersByEnvironment(environment string) []BackgroundLayer {
 	switch environment {
 	case "desert":
@@ -460,8 +395,6 @@ func GetLayersByEnvironment(environment string) []BackgroundLayer {
 		return ForestLayers()
 	case "mountains":
 		return MountainsLayers()
-	case "cave":
-		return CaveLayers()
 	default:
 		return DesertLayers()
 	}
@@ -503,5 +436,166 @@ func DrawBackgroundLayers(screen *ebiten.Image, layers []BackgroundLayer, camera
 			opts.GeoM.Scale(layer.ScaleX, layer.ScaleY)
 			screen.DrawImage(layer.Image, opts)
 		}
+	}
+}
+
+// TileMap represents a loaded TMX tilemap
+type TileMap struct {
+	Map           *tiled.Map
+	TilesetImages map[uint32]*ebiten.Image
+	Width         int
+	Height        int
+	TileWidth     int
+	TileHeight    int
+}
+
+// EmbeddedFS implements fs.FS for embedded files
+type EmbeddedFS struct {
+	embedFS *embed.FS
+}
+
+// Open implements fs.FS
+func (e *EmbeddedFS) Open(name string) (fs.File, error) {
+	return assets.Open(name)
+}
+
+// LoadTMX loads a TMX file from the embedded assets
+func LoadTMX(path string) (*TileMap, error) {
+	// Use the LoadFile function with embedded filesystem
+	m, err := tiled.LoadFile(path, tiled.WithFileSystem(&EmbeddedFS{embedFS: &assets}))
+	if err != nil {
+		return nil, err
+	}
+
+	tileMap := &TileMap{
+		Map:           m,
+		TilesetImages: make(map[uint32]*ebiten.Image),
+		Width:         m.Width * m.TileWidth,
+		Height:        m.Height * m.TileHeight,
+		TileWidth:     m.TileWidth,
+		TileHeight:    m.TileHeight,
+	}
+
+	// Log tileset information for debugging
+	log.Printf("Map dimensions: %dx%d, Tile size: %dx%d", m.Width, m.Height, m.TileWidth, m.TileHeight)
+	log.Printf("Number of tilesets: %d", len(m.Tilesets))
+
+	// Load all tileset images
+	for i, tileset := range m.Tilesets {
+		log.Printf("Tileset %d: %s, FirstGID: %d, Tile count: %d",
+			i, tileset.Name, tileset.FirstGID, len(tileset.Tiles))
+
+		// For each tile in the tileset
+		for _, tile := range tileset.Tiles {
+			if tile.Image != nil {
+				// Get the image path relative to the tileset
+				imagePath := filepath.Join(filepath.Dir(path), tile.Image.Source)
+				log.Printf("Loading tile image: %s", imagePath)
+
+				// Load the image from embedded assets
+				tileImg := esset.GetAsset(assets, imagePath)
+				if tileImg != nil {
+					// Store with the global tile ID
+					tileMap.TilesetImages[tile.ID+tileset.FirstGID] = tileImg
+					log.Printf("Loaded tile ID: %d", tile.ID+tileset.FirstGID)
+				} else {
+					log.Printf("Failed to load tile image: %s", imagePath)
+				}
+			}
+		}
+	}
+
+	return tileMap, nil
+}
+
+// Draw renders the tile map with a camera from the src package
+func (tm *TileMap) Draw(screen *ebiten.Image, cameraX, cameraY, viewportW, viewportH float64) {
+	if tm.Map == nil {
+		return
+	}
+
+	for _, layer := range tm.Map.Layers {
+		if !layer.Visible {
+			continue
+		}
+		for y := 0; y < tm.Map.Height; y++ {
+			for x := 0; x < tm.Map.Width; x++ {
+				idx := y*tm.Map.Width + x
+				if idx >= len(layer.Tiles) {
+					continue
+				}
+
+				// The tile in the layer
+				tile := layer.Tiles[idx]
+
+				// Skip empty tiles
+				if tile.ID == 0 {
+					continue
+				}
+
+				// Get the image for this tile
+				tileImg, ok := tm.TilesetImages[tile.ID]
+				if !ok {
+					// Log missing tiles for debugging
+					log.Printf("Tile image not found for ID %d at position (%d,%d)", tile.ID, x, y)
+					continue // Image not found
+				}
+
+				// Simple positioning - no manipulation
+				gridX := float64(x*tm.TileWidth) - cameraX
+				gridY := float64(y*tm.TileHeight) - cameraY
+
+				// Skip if outside viewport
+				if gridX+float64(tm.TileWidth) < 0 || gridX > viewportW ||
+					gridY+float64(tm.TileHeight) < 0 || gridY > viewportH {
+					continue
+				}
+
+				// Draw the tile with no transformations
+				op := &ebiten.DrawImageOptions{}
+				op.GeoM.Translate(gridX, gridY)
+				screen.DrawImage(tileImg, op)
+			}
+		}
+	}
+}
+
+// Map cache to avoid reloading maps
+var tmxMapCache = make(map[string]*TileMap)
+
+// GetTileMap loads and caches a TMX map
+func GetTileMap(path string) *TileMap {
+	if cached, ok := tmxMapCache[path]; ok {
+		return cached
+	}
+
+	tileMap, err := LoadTMX(path)
+	if err != nil {
+		log.Printf("Error loading TMX map %s: %v", path, err)
+		return nil
+	}
+
+	tmxMapCache[path] = tileMap
+	return tileMap
+}
+
+// ClearTileMapCache clears the cached tilemaps
+func ClearTileMapCache() {
+	tmxMapCache = make(map[string]*TileMap)
+}
+
+// DesertTileMap is a cached instance of the desert tilemap
+var DesertTileMap *TileMap
+
+// InitTileMaps initializes and caches all tilemaps
+func InitTileMaps() {
+	// Try to load the desert tilemap
+	var err error
+	DesertTileMap, err = LoadTMX("images/backgrounds/desert-tiles/desert.tmx")
+	if err != nil {
+		log.Printf("Error initializing desert tilemap: %v", err)
+	} else {
+		log.Printf("Successfully loaded desert tilemap with dimensions: %dx%d",
+			DesertTileMap.Width, DesertTileMap.Height)
 	}
 }
