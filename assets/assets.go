@@ -41,6 +41,14 @@ var (
 	MountainsCloudsMg2   = esset.GetAsset(assets, "images/backgrounds/mountains/clouds_mg_2.png")
 	MountainsCloudsMg1   = esset.GetAsset(assets, "images/backgrounds/mountains/clouds_mg_1.png")
 	MountainsCloudLonely = esset.GetAsset(assets, "images/backgrounds/mountains/cloud_lonely.png")
+
+	Cave1 = esset.GetAsset(assets, "images/backgrounds/cave/1.png")
+	Cave2 = esset.GetAsset(assets, "images/backgrounds/cave/2.png")
+	Cave3 = esset.GetAsset(assets, "images/backgrounds/cave/3.png")
+	Cave4 = esset.GetAsset(assets, "images/backgrounds/cave/4.png")
+	Cave5 = esset.GetAsset(assets, "images/backgrounds/cave/5.png")
+	Cave6 = esset.GetAsset(assets, "images/backgrounds/cave/6.png")
+	Cave7 = esset.GetAsset(assets, "images/backgrounds/cave/7.png")
 )
 
 func InitCharacterAnimations() *SimpleAnimationManager {
@@ -356,6 +364,18 @@ func MountainsLayers() []BackgroundLayer {
 	}
 }
 
+func CaveLayers() []BackgroundLayer {
+	return []BackgroundLayer{
+		{Cave7, "cave_7", 0.1, 0.05, -6, 0, -100, true, false, 2, 2},
+		{Cave6, "cave_6", 0.25, 0.1, -5, 0, -80, true, false, 2, 2},
+		{Cave5, "cave_5", 0.4, 0.15, -4, 0, -60, true, false, 2, 2},
+		{Cave4, "cave_4", 0.55, 0.2, -3, 0, -40, true, false, 2, 2},
+		{Cave3, "cave_3", 0.7, 0.25, -2, 0, -20, true, false, 2, 2},
+		{Cave2, "cave_2", 0.85, 0.3, -1, 0, -10, true, false, 2, 2},
+		{Cave1, "cave_1", 1.0, 0.35, 0, 0, 0, true, false, 2, 2},
+	}
+}
+
 func GetLayersByEnvironment(environment string) []BackgroundLayer {
 	switch environment {
 	case "desert":
@@ -364,6 +384,8 @@ func GetLayersByEnvironment(environment string) []BackgroundLayer {
 		return ForestLayers()
 	case "mountains":
 		return MountainsLayers()
+	case "cave":
+		return CaveLayers()
 	default:
 		return DesertLayers()
 	}

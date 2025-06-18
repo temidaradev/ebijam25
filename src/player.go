@@ -62,6 +62,16 @@ func NewPlayer(x, y, worldWidth, worldHeight, groundLevel float64, tileMap *asse
 
 	animManager.SetAnimationSpeed(1.0)
 
+	var cameraWorldW, cameraWorldH float64
+	if tileMap != nil {
+		cameraWorldW = float64(tileMap.PixelWidth)
+		cameraWorldH = float64(tileMap.PixelHeight)
+	} else {
+		cameraWorldW = worldWidth
+		cameraWorldH = worldHeight
+	}
+	// Set vertical offset to move camera view a bit higher
+	verticalOffset := -80.0
 	player := &Player{
 		X:                x,
 		Y:                y,
@@ -83,11 +93,13 @@ func NewPlayer(x, y, worldWidth, worldHeight, groundLevel float64, tileMap *asse
 		WorldWidth:       worldWidth,
 		WorldHeight:      worldHeight,
 		GroundLevel:      groundLevel,
-		Camera:           NewCamera(1280, 720, 0, worldHeight),
+		Camera:           NewCamera(1280, 720, cameraWorldW, cameraWorldH),
 		Controller:       NewControllerInput(),
 		TileMap:          tileMap,
 		CollisionSystem:  NewCollisionSystem(tileMap),
 	}
+
+	player.Camera.VerticalOffset = verticalOffset
 
 	return player
 }

@@ -29,8 +29,8 @@ func NewCamera(viewportW, viewportH, worldW, worldH float64) *Camera {
 		WorldH:         worldH,
 		FollowSpeed:    8.0,
 		LookAhead:      0.3,
-		DeadZone:       20.0,
-		VerticalOffset: -30.0,
+		DeadZone:       0.0, // Follow player immediately in both axes
+		VerticalOffset: 0.0, // Center camera vertically on player
 	}
 }
 
