@@ -20,6 +20,8 @@ github.com/lafriks/go-tiled v0.13.0 h1:xZE2rEKCNJPya+g92FCIjzEH4fZLQcZVqvpw174P2
 github.com/lafriks/go-tiled v0.13.0/go.mod h1:FRhv/27R9S9IOmDl7+XrSUjFrV0uCUCu23rTCHRuj5c=
 github.com/pierrec/lz4/v4 v4.1.21 h1:yOVMLb6qSIDP67pl/5F7RepeKYu/VmTyEXvuMI5d9mQ=
 github.com/pierrec/lz4/v4 v4.1.21/go.mod h1:gZWDp/Ze/IJXGXf23ltt2EXimqmTUXEy0GFuRQyBid4=
+github.com/solarlune/resolv v0.8.1 h1:QkjnTJYB59EJmw+0+f52UbfE149ERU4FTCRICJTYz9k=
+github.com/solarlune/resolv v0.8.1/go.mod h1:iqRbXy78XQ7aDXGZY3abI41Wr80Yv1DqnxzzPvGG6yE=
 github.com/temidaradev/esset/v2 v2.2.0 h1:DtCUT9bu2fNoiy1RdCKLZi0rwsonJ/UVhZzFpDjG+rM=
 github.com/temidaradev/esset/v2 v2.2.0/go.mod h1:q8WtPA2J9p7t53ZpfnNRJGA2ySWhkHTzKAo0/f9RMlI=
 golang.org/x/image v0.0.0-20191009234506-e7c1f5e7dbb8/go.mod h1:FeLwcggjj3mMvU+oOTbSwawSJRM1uh48EjtB4UJZlP0=

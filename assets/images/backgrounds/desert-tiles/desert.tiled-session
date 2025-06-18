@@ -7,8 +7,15 @@
     "expandedProjectPaths": [
     ],
     "fileStates": {
-        "desert.tsx": {
+        "": {
+            "scaleInDock": 1
+        },
+        "desert.tmx#desert": {
             "dynamicWrapping": true
+        },
+        "desert.tsx": {
+            "dynamicWrapping": true,
+            "scaleInEditor": 0.25
         }
     },
     "last.imagePath": "/home/temidaradev/Documents/ebijam25/assets/images/backgrounds/desert-tiles",
@@ -17,6 +24,7 @@
     ],
     "project": "desert.tiled-project",
     "recentFiles": [
+        "desert.tsx"
     ],
     "tileset.lastUsedFormat": "tsx",
     "tileset.type": 1
