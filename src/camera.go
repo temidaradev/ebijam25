@@ -74,8 +74,8 @@ func (c *Camera) Follow(playerX, playerY, velocityX, velocityY float64) {
 	}
 }
 
-func (c *Camera) GetView() (x, y, w, h float64) {
-	return c.X, c.Y, c.ViewportW, c.ViewportH
+func (c *Camera) GetView() (x, y float64) {
+	return c.X, c.Y
 }
 
 func (c *Camera) GetTransform() *ebiten.GeoM {

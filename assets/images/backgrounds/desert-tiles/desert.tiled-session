@@ -1,0 +1,23 @@
+{
+    "Map/SizeTest": {
+        "height": 4300,
+        "width": 2
+    },
+    "activeFile": "",
+    "expandedProjectPaths": [
+    ],
+    "fileStates": {
+        "desert.tsx": {
+            "dynamicWrapping": true
+        }
+    },
+    "last.imagePath": "/home/temidaradev/Documents/ebijam25/assets/images/backgrounds/desert-tiles",
+    "map.lastUsedFormat": "tmx",
+    "openFiles": [
+    ],
+    "project": "desert.tiled-project",
+    "recentFiles": [
+    ],
+    "tileset.lastUsedFormat": "tsx",
+    "tileset.type": 1
+}

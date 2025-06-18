@@ -5,19 +5,10 @@ import (
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
-	"io/fs"
-	"log"
-	"path/filepath"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"github.com/lafriks/go-tiled"
 	"github.com/temidaradev/esset/v2"
-)
-
-const (
-	WindowWidth800  = 1280
-	WindowHeight600 = 720
 )
 
 //go:embed *
@@ -35,15 +26,6 @@ var (
 	DesertBackground1 = esset.GetAsset(assets, "images/backgrounds/desert/background1.png")
 	DesertBackground2 = esset.GetAsset(assets, "images/backgrounds/desert/background2.png")
 	DesertBackground3 = esset.GetAsset(assets, "images/backgrounds/desert/background3.png")
-
-	DesertCloud1 = esset.GetAsset(assets, "images/backgrounds/desert/cloud1.png")
-	DesertCloud2 = esset.GetAsset(assets, "images/backgrounds/desert/cloud2.png")
-	DesertCloud3 = esset.GetAsset(assets, "images/backgrounds/desert/cloud3.png")
-	DesertCloud4 = esset.GetAsset(assets, "images/backgrounds/desert/cloud4.png")
-	DesertCloud5 = esset.GetAsset(assets, "images/backgrounds/desert/cloud5.png")
-	DesertCloud6 = esset.GetAsset(assets, "images/backgrounds/desert/cloud6.png")
-	DesertCloud7 = esset.GetAsset(assets, "images/backgrounds/desert/cloud7.png")
-	DesertCloud8 = esset.GetAsset(assets, "images/backgrounds/desert/cloud8.png")
 
 	ForestSky      = esset.GetAsset(assets, "images/backgrounds/forest/sky.png")
 	ForestSkyCloud = esset.GetAsset(assets, "images/backgrounds/forest/sky_cloud.png")
@@ -310,19 +292,6 @@ type SpriteSheet struct {
 	Rows         int
 }
 
-func NewSpriteSheet(image *ebiten.Image, spriteWidth, spriteHeight int) *SpriteSheet {
-	columns := image.Bounds().Dx() / spriteWidth
-	rows := image.Bounds().Dy() / spriteHeight
-
-	return &SpriteSheet{
-		Image:        image,
-		SpriteWidth:  spriteWidth,
-		SpriteHeight: spriteHeight,
-		Columns:      columns,
-		Rows:         rows,
-	}
-}
-
 func (sam *SimpleAnimationManager) GetCurrentAnimation() string {
 	return sam.currentAnim
 }
@@ -436,166 +405,5 @@ func DrawBackgroundLayers(screen *ebiten.Image, layers []BackgroundLayer, camera
 			opts.GeoM.Scale(layer.ScaleX, layer.ScaleY)
 			screen.DrawImage(layer.Image, opts)
 		}
-	}
-}
-
-// TileMap represents a loaded TMX tilemap
-type TileMap struct {
-	Map           *tiled.Map
-	TilesetImages map[uint32]*ebiten.Image
-	Width         int
-	Height        int
-	TileWidth     int
-	TileHeight    int
-}
-
-// EmbeddedFS implements fs.FS for embedded files
-type EmbeddedFS struct {
-	embedFS *embed.FS
-}
-
-// Open implements fs.FS
-func (e *EmbeddedFS) Open(name string) (fs.File, error) {
-	return assets.Open(name)
-}
-
-// LoadTMX loads a TMX file from the embedded assets
-func LoadTMX(path string) (*TileMap, error) {
-	// Use the LoadFile function with embedded filesystem
-	m, err := tiled.LoadFile(path, tiled.WithFileSystem(&EmbeddedFS{embedFS: &assets}))
-	if err != nil {
-		return nil, err
-	}
-
-	tileMap := &TileMap{
-		Map:           m,
-		TilesetImages: make(map[uint32]*ebiten.Image),
-		Width:         m.Width * m.TileWidth,
-		Height:        m.Height * m.TileHeight,
-		TileWidth:     m.TileWidth,
-		TileHeight:    m.TileHeight,
-	}
-
-	// Log tileset information for debugging
-	log.Printf("Map dimensions: %dx%d, Tile size: %dx%d", m.Width, m.Height, m.TileWidth, m.TileHeight)
-	log.Printf("Number of tilesets: %d", len(m.Tilesets))
-
-	// Load all tileset images
-	for i, tileset := range m.Tilesets {
-		log.Printf("Tileset %d: %s, FirstGID: %d, Tile count: %d",
-			i, tileset.Name, tileset.FirstGID, len(tileset.Tiles))
-
-		// For each tile in the tileset
-		for _, tile := range tileset.Tiles {
-			if tile.Image != nil {
-				// Get the image path relative to the tileset
-				imagePath := filepath.Join(filepath.Dir(path), tile.Image.Source)
-				log.Printf("Loading tile image: %s", imagePath)
-
-				// Load the image from embedded assets
-				tileImg := esset.GetAsset(assets, imagePath)
-				if tileImg != nil {
-					// Store with the global tile ID
-					tileMap.TilesetImages[tile.ID+tileset.FirstGID] = tileImg
-					log.Printf("Loaded tile ID: %d", tile.ID+tileset.FirstGID)
-				} else {
-					log.Printf("Failed to load tile image: %s", imagePath)
-				}
-			}
-		}
-	}
-
-	return tileMap, nil
-}
-
-// Draw renders the tile map with a camera from the src package
-func (tm *TileMap) Draw(screen *ebiten.Image, cameraX, cameraY, viewportW, viewportH float64) {
-	if tm.Map == nil {
-		return
-	}
-
-	for _, layer := range tm.Map.Layers {
-		if !layer.Visible {
-			continue
-		}
-		for y := 0; y < tm.Map.Height; y++ {
-			for x := 0; x < tm.Map.Width; x++ {
-				idx := y*tm.Map.Width + x
-				if idx >= len(layer.Tiles) {
-					continue
-				}
-
-				// The tile in the layer
-				tile := layer.Tiles[idx]
-
-				// Skip empty tiles
-				if tile.ID == 0 {
-					continue
-				}
-
-				// Get the image for this tile
-				tileImg, ok := tm.TilesetImages[tile.ID]
-				if !ok {
-					// Log missing tiles for debugging
-					log.Printf("Tile image not found for ID %d at position (%d,%d)", tile.ID, x, y)
-					continue // Image not found
-				}
-
-				// Simple positioning - no manipulation
-				gridX := float64(x*tm.TileWidth) - cameraX
-				gridY := float64(y*tm.TileHeight) - cameraY
-
-				// Skip if outside viewport
-				if gridX+float64(tm.TileWidth) < 0 || gridX > viewportW ||
-					gridY+float64(tm.TileHeight) < 0 || gridY > viewportH {
-					continue
-				}
-
-				// Draw the tile with no transformations
-				op := &ebiten.DrawImageOptions{}
-				op.GeoM.Translate(gridX, gridY)
-				screen.DrawImage(tileImg, op)
-			}
-		}
-	}
-}
-
-// Map cache to avoid reloading maps
-var tmxMapCache = make(map[string]*TileMap)
-
-// GetTileMap loads and caches a TMX map
-func GetTileMap(path string) *TileMap {
-	if cached, ok := tmxMapCache[path]; ok {
-		return cached
-	}
-
-	tileMap, err := LoadTMX(path)
-	if err != nil {
-		log.Printf("Error loading TMX map %s: %v", path, err)
-		return nil
-	}
-
-	tmxMapCache[path] = tileMap
-	return tileMap
-}
-
-// ClearTileMapCache clears the cached tilemaps
-func ClearTileMapCache() {
-	tmxMapCache = make(map[string]*TileMap)
-}
-
-// DesertTileMap is a cached instance of the desert tilemap
-var DesertTileMap *TileMap
-
-// InitTileMaps initializes and caches all tilemaps
-func InitTileMaps() {
-	// Try to load the desert tilemap
-	var err error
-	DesertTileMap, err = LoadTMX("images/backgrounds/desert-tiles/desert.tmx")
-	if err != nil {
-		log.Printf("Error initializing desert tilemap: %v", err)
-	} else {
-		log.Printf("Successfully loaded desert tilemap with dimensions: %dx%d",
-			DesertTileMap.Width, DesertTileMap.Height)
 	}
 }

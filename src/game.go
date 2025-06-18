@@ -27,7 +27,6 @@ type Game struct {
 	lastFrameTime      float64
 	currentEnvironment string
 	controller         *ControllerInput
-	currentTileMap     *assets.TileMap
 }
 
 func init() {
@@ -50,9 +49,8 @@ func NewGame() *Game {
 		menu:               NewMenu(),
 		player:             NewPlayer(playerStartX, playerStartY, float64(screenWidth), float64(screenHeight), groundLevel),
 		lastFrameTime:      0,
-		currentEnvironment: "forest",
+		currentEnvironment: "desert",
 		controller:         NewControllerInput(),
-		currentTileMap:     assets.DesertTileMap,
 	}
 }
 
@@ -89,19 +87,15 @@ func (g *Game) Update() error {
 
 		if inpututil.IsKeyJustPressed(ebiten.Key1) {
 			g.currentEnvironment = "desert"
-			g.currentTileMap = assets.DesertTileMap
 		}
 		if inpututil.IsKeyJustPressed(ebiten.Key2) {
 			g.currentEnvironment = "forest"
-			g.currentTileMap = nil
 		}
 		if inpututil.IsKeyJustPressed(ebiten.Key3) {
 			g.currentEnvironment = "mountains"
-			g.currentTileMap = nil
 		}
 		if inpututil.IsKeyJustPressed(ebiten.Key4) {
 			g.currentEnvironment = "cave"
-			g.currentTileMap = nil
 		}
 
 		g.parallaxOffset += 0.5
@@ -134,14 +128,16 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	case GameStatePlaying:
 		camera := g.player.GetCamera()
-		cameraX, cameraY, viewportW, viewportH := camera.GetView()
+		cameraX, cameraY := camera.GetView()
 
 		layers := assets.GetLayersByEnvironment(g.currentEnvironment)
 		assets.DrawBackgroundLayers(screen, layers, cameraX, cameraY, screenWidth, screenHeight)
 
-		// Draw the tile map if we're in the desert environment
-		if g.currentEnvironment == "desert" && g.currentTileMap != nil {
-			g.currentTileMap.Draw(screen, cameraX, cameraY, float64(viewportW), float64(viewportH))
+		// Draw the desert tilemap if in desert environment
+		if g.currentEnvironment == "desert" {
+			if assets.DesertTileMap != nil {
+				assets.DesertTileMap.Draw(screen, cameraX, cameraY, float64(screenWidth), float64(screenHeight))
+			}
 		}
 
 		groundY := float32(g.player.GroundLevel)
@@ -163,15 +159,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	case GameStatePaused:
 		camera := g.player.GetCamera()
-		cameraX, cameraY, viewportW, viewportH := camera.GetView()
+		cameraX, cameraY := camera.GetView()
 
 		layers := assets.GetLayersByEnvironment(g.currentEnvironment)
 		assets.DrawBackgroundLayers(screen, layers, cameraX, cameraY, screenWidth, screenHeight)
-
-		// Draw the tile map if we're in the desert environment
-		if g.currentEnvironment == "desert" && g.currentTileMap != nil {
-			g.currentTileMap.Draw(screen, cameraX, cameraY, float64(viewportW), float64(viewportH))
-		}
 
 		groundY := float32(g.player.GroundLevel)
 		screenGroundX1, screenGroundY1 := camera.WorldToScreen(0, float64(groundY))
