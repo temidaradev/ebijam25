@@ -18,6 +18,7 @@ const (
 	MenuStateMain MenuState = iota
 	MenuStateSettings
 	MenuStatePause
+	MenuStateRespawn
 )
 
 type MenuItem struct {
@@ -33,12 +34,14 @@ type Menu struct {
 	menuItems                 []MenuItem
 	settingsItems             []MenuItem
 	pauseItems                []MenuItem
+	respawnItems              []MenuItem
 	animationTime             float64
 	transitionAlpha           float64
 	backgroundAlpha           float64
 	startGameRequested        bool
 	exitRequested             bool
 	continueRequested         bool
+	restartRequested          bool
 	fullscreenToggleRequested bool
 	controller                *ControllerInput
 }
@@ -96,6 +99,17 @@ func NewMenu() *Menu {
 		{Text: "EXIT GAME", Action: func() MenuState {
 			os.Exit(0)
 			return MenuStatePause
+		}},
+	}
+
+	m.respawnItems = []MenuItem{
+		{Text: "RESTART GAME", Action: func() MenuState {
+			m.restartRequested = true
+			return MenuStateRespawn
+		}},
+		{Text: "QUIT GAME", Action: func() MenuState {
+			os.Exit(1)
+			return MenuStateRespawn
 		}},
 	}
 
@@ -175,6 +189,8 @@ func (m *Menu) Draw(screen *ebiten.Image) {
 		m.drawSettingsMenu(screen, screenWidth, screenHeight)
 	case MenuStatePause:
 		m.drawPauseMenu(screen, screenWidth, screenHeight)
+	case MenuStateRespawn:
+		m.drawRespawnMenu(screen, screenWidth, screenHeight)
 	}
 }
 
@@ -209,6 +225,32 @@ func (m *Menu) drawPauseMenu(screen *ebiten.Image, screenWidth, screenHeight int
 	esset.DrawText(screen, titleText, titleX, titleY, assets.FontFaceM, color.RGBA{255, 255, 255, 255})
 
 	m.drawMenuItems(screen, m.pauseItems, screenWidth, screenHeight)
+}
+
+func (m *Menu) drawRespawnMenu(screen *ebiten.Image, screenWidth, screenHeight int) {
+	// Draw a darker background overlay
+	vector.DrawFilledRect(screen, 0, 0, float32(screenWidth), float32(screenHeight),
+		color.RGBA{0, 0, 0, 150}, false)
+
+	// Title with red coloring to indicate death
+	titleText := "YOU DIED"
+	titleX := float64(screenWidth)*0.5 - 100 // Center the title
+	titleY := float64(screenHeight) * 0.25
+
+	// Pulsing red effect for dramatic impact
+	pulse := 0.7 + 0.3*math.Sin(m.animationTime*3)
+	titleColor := color.RGBA{255, uint8(100 * pulse), uint8(100 * pulse), 255}
+
+	esset.DrawText(screen, titleText, titleX, titleY, assets.FontFaceM, titleColor)
+
+	// Subtitle
+	subtitleText := "Choose your next action:"
+	subtitleX := float64(screenWidth) * 0.025
+	subtitleY := titleY + 60
+
+	esset.DrawText(screen, subtitleText, subtitleX, subtitleY, assets.FontFaceS, color.RGBA{200, 200, 200, 255})
+
+	m.drawMenuItems(screen, m.respawnItems, screenWidth, screenHeight)
 }
 
 func (m *Menu) drawMenuItems(screen *ebiten.Image, items []MenuItem, screenWidth, screenHeight int) {
@@ -270,6 +312,8 @@ func (m *Menu) getCurrentMenuItems() []MenuItem {
 		return m.settingsItems
 	case MenuStatePause:
 		return m.pauseItems
+	case MenuStateRespawn:
+		return m.respawnItems
 	default:
 		return m.menuItems
 	}
@@ -311,7 +355,20 @@ func (m *Menu) IsFullscreenToggleRequested() bool {
 	return false
 }
 
+func (m *Menu) IsRestartRequested() bool {
+	if m.restartRequested {
+		m.restartRequested = false
+		return true
+	}
+	return false
+}
+
 func (m *Menu) SetPauseState() {
 	m.state = MenuStatePause
+	m.selectedIndex = 0
+}
+
+func (m *Menu) SetRespawnState() {
+	m.state = MenuStateRespawn
 	m.selectedIndex = 0
 }

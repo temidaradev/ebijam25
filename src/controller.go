@@ -171,6 +171,16 @@ func (c *ControllerInput) IsJumpJustPressed() bool {
 	return inpututil.IsGamepadButtonJustPressed(c.gamepadID, 1)
 }
 
+func (c *ControllerInput) IsJumpPressed() bool {
+	if !c.isActive {
+		return false
+	}
+	if c.hasStandardLayout {
+		return ebiten.IsStandardGamepadButtonPressed(c.gamepadID, ebiten.StandardGamepadButtonRightRight)
+	}
+	return ebiten.IsGamepadButtonPressed(c.gamepadID, 1)
+}
+
 func (c *ControllerInput) IsSelectJustPressed() bool {
 	if !c.isActive {
 		return false
@@ -179,7 +189,6 @@ func (c *ControllerInput) IsSelectJustPressed() bool {
 	if c.hasStandardLayout {
 		return inpututil.IsStandardGamepadButtonJustPressed(c.gamepadID, ebiten.StandardGamepadButtonRightBottom)
 	}
-
 	return inpututil.IsGamepadButtonJustPressed(c.gamepadID, 0)
 }
 
@@ -221,4 +230,14 @@ func (c *ControllerInput) IsRollJustPressed() bool {
 		return inpututil.IsStandardGamepadButtonJustPressed(c.gamepadID, ebiten.StandardGamepadButtonRightBottom)
 	}
 	return inpututil.IsGamepadButtonJustPressed(c.gamepadID, 0)
+}
+
+func (c *ControllerInput) IsAttackJustPressed() bool {
+	if !c.isActive {
+		return false
+	}
+	if c.hasStandardLayout {
+		return inpututil.IsStandardGamepadButtonJustPressed(c.gamepadID, ebiten.StandardGamepadButtonFrontTopRight)
+	}
+	return inpututil.IsGamepadButtonJustPressed(c.gamepadID, 5)
 }

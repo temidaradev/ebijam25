@@ -1,4 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="150" height="50" tilewidth="32" tileheight="32" infinite="0" nextlayerid="9" nextobjectid="94">
- <tileset firstgid="1" source="cloud.tsx"/>
-</map>

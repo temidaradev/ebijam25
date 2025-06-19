@@ -26,39 +26,25 @@ var (
 	DesertBackground1 = esset.GetAsset(assets, "images/backgrounds/desert/background1.png")
 	DesertBackground2 = esset.GetAsset(assets, "images/backgrounds/desert/background2.png")
 	DesertBackground3 = esset.GetAsset(assets, "images/backgrounds/desert/background3.png")
-
-	ForestSky      = esset.GetAsset(assets, "images/backgrounds/forest/sky.png")
-	ForestSkyCloud = esset.GetAsset(assets, "images/backgrounds/forest/sky_cloud.png")
-	ForestMountain = esset.GetAsset(assets, "images/backgrounds/forest/mountain2.png")
-	ForestCloud    = esset.GetAsset(assets, "images/backgrounds/forest/cloud.png")
-	ForestPine1    = esset.GetAsset(assets, "images/backgrounds/forest/pine1.png")
-	ForestPine2    = esset.GetAsset(assets, "images/backgrounds/forest/pine2.png")
-
-	MountainsSky         = esset.GetAsset(assets, "images/backgrounds/mountains/sky.png")
-	MountainsCloudsBg    = esset.GetAsset(assets, "images/backgrounds/mountains/clouds_bg.png")
-	MountainsGlacial     = esset.GetAsset(assets, "images/backgrounds/mountains/glacial_mountains.png")
-	MountainsCloudsMg3   = esset.GetAsset(assets, "images/backgrounds/mountains/clouds_mg_3.png")
-	MountainsCloudsMg2   = esset.GetAsset(assets, "images/backgrounds/mountains/clouds_mg_2.png")
-	MountainsCloudsMg1   = esset.GetAsset(assets, "images/backgrounds/mountains/clouds_mg_1.png")
-	MountainsCloudLonely = esset.GetAsset(assets, "images/backgrounds/mountains/cloud_lonely.png")
-
-	Cave1 = esset.GetAsset(assets, "images/backgrounds/cave/1.png")
-	Cave2 = esset.GetAsset(assets, "images/backgrounds/cave/2.png")
-	Cave3 = esset.GetAsset(assets, "images/backgrounds/cave/3.png")
-	Cave4 = esset.GetAsset(assets, "images/backgrounds/cave/4.png")
-	Cave5 = esset.GetAsset(assets, "images/backgrounds/cave/5.png")
-	Cave6 = esset.GetAsset(assets, "images/backgrounds/cave/6.png")
-	Cave7 = esset.GetAsset(assets, "images/backgrounds/cave/7.png")
 )
 
 func InitCharacterAnimations() *SimpleAnimationManager {
 	animManager := NewSimpleAnimationManager(CharacterSpritesheet, 50, 37)
+
 	animManager.AddAnimation("idle", 0, 3, 0.12, true)
 	animManager.AddAnimation("run", 8, 13, 0.06, true)
 	animManager.AddAnimation("jump", 14, 17, 0.08, false)
 	animManager.AddAnimation("fall", 22, 23, 0.1, true)
 	animManager.AddAnimation("walk", 155, 160, 0.18, true)
 	animManager.AddAnimation("roll", 24, 27, 0.06, false)
+
+	animManager.AddAnimation("attack1", 42, 46, 0.05, false)
+	animManager.AddAnimation("attack2", 47, 52, 0.05, false)
+	animManager.AddAnimation("attack3", 53, 58, 0.05, false)
+	animManager.AddAnimation("air-attack1", 96, 99, 0.05, false)
+	animManager.AddAnimation("air-attack2", 100, 102, 0.05, false)
+	animManager.AddAnimation("hurt", 59, 61, 0.08, false)
+
 	animManager.SetAnimation("idle")
 	return animManager
 }
@@ -341,54 +327,8 @@ func DesertLayers() []BackgroundLayer {
 	}
 }
 
-func ForestLayers() []BackgroundLayer {
-	return []BackgroundLayer{
-		{ForestSky, "forest_sky", 0.05, 0.02, -6, 0, 0, true, false, 2, 2},
-		{ForestSkyCloud, "forest_sky_cloud", 0.1, 0.05, -5, 0, 10, true, false, 3.2, 2},
-		{ForestMountain, "forest_mountain", 0.2, 0.08, -4, 0, 60, true, false, 2, 2},
-		{ForestCloud, "forest_cloud", 0.3, 0.12, -3, 160, 48, true, false, 2, 2},
-		{ForestPine1, "forest_pine1", 0.5, 0.2, -2, 0, 125, true, false, 2, 2},
-		{ForestPine2, "forest_pine2", 0.8, 0.4, -1, 0, 160, true, false, 2, 2},
-	}
-}
-
-func MountainsLayers() []BackgroundLayer {
-	return []BackgroundLayer{
-		{MountainsSky, "mountains_sky", 0.05, 0.02, -6, 0, 0, true, false, 2.5, 2.5},
-		{MountainsCloudsBg, "mountains_clouds_bg", 0.1, 0.05, -5, 0, 10, true, false, 2.5, 2.5},
-		{MountainsGlacial, "mountains_glacial", 0.2, 0.08, -4, 0, 80, true, false, 2.5, 2.5},
-		{MountainsCloudsMg3, "mountains_clouds_mg3", 0.25, 0.1, -3, 50, 120, true, false, 2.5, 2.5},
-		{MountainsCloudsMg2, "mountains_clouds_mg2", 0.4, 0.15, -2, 208, 140, true, false, 2.5, 2.5},
-		{MountainsCloudsMg1, "mountains_clouds_mg1", 0.6, 0.25, -1, 128, 145, true, false, 2.5, 2.5},
-		{MountainsCloudLonely, "mountains_cloud_lonely", 0.8, 0.35, 0, 320, 112, false, false, 2.5, 2.5},
-	}
-}
-
-func CaveLayers() []BackgroundLayer {
-	return []BackgroundLayer{
-		{Cave7, "cave_7", 0.1, 0.05, -6, 0, -100, true, false, 2, 2},
-		{Cave6, "cave_6", 0.25, 0.1, -5, 0, -80, true, false, 2, 2},
-		{Cave5, "cave_5", 0.4, 0.15, -4, 0, -60, true, false, 2, 2},
-		{Cave4, "cave_4", 0.55, 0.2, -3, 0, -40, true, false, 2, 2},
-		{Cave3, "cave_3", 0.7, 0.25, -2, 0, -20, true, false, 2, 2},
-		{Cave2, "cave_2", 0.85, 0.3, -1, 0, -10, true, false, 2, 2},
-		{Cave1, "cave_1", 1.0, 0.35, 0, 0, 0, true, false, 2, 2},
-	}
-}
-
 func GetLayersByEnvironment(environment string) []BackgroundLayer {
-	switch environment {
-	case "desert":
-		return DesertLayers()
-	case "forest":
-		return ForestLayers()
-	case "mountains":
-		return MountainsLayers()
-	case "cave":
-		return CaveLayers()
-	default:
-		return DesertLayers()
-	}
+	return DesertLayers()
 }
 
 func DrawBackgroundLayers(screen *ebiten.Image, layers []BackgroundLayer, cameraX, cameraY float64, screenWidth, screenHeight int) {

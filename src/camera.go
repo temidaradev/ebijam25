@@ -7,14 +7,13 @@ import (
 )
 
 type Camera struct {
-	X, Y      float64
-	TargetX   float64
-	TargetY   float64
-	ViewportW float64
-	ViewportH float64
-	WorldW    float64
-	WorldH    float64
-
+	X, Y           float64
+	TargetX        float64
+	TargetY        float64
+	ViewportW      float64
+	ViewportH      float64
+	WorldW         float64
+	WorldH         float64
 	FollowSpeed    float64
 	LookAhead      float64
 	DeadZone       float64
@@ -27,10 +26,10 @@ func NewCamera(viewportW, viewportH, worldW, worldH float64) *Camera {
 		ViewportH:      viewportH,
 		WorldW:         worldW,
 		WorldH:         worldH,
-		FollowSpeed:    8.0,
+		FollowSpeed:    3.0,
 		LookAhead:      0.3,
-		DeadZone:       0.0, // Follow player immediately in both axes
-		VerticalOffset: 0.0, // Center camera vertically on player
+		DeadZone:       20.0,
+		VerticalOffset: -100.0,
 	}
 }
 
@@ -38,16 +37,17 @@ func (c *Camera) Update(deltaTime float64) {
 	dx := c.TargetX - c.X
 	dy := c.TargetY - c.Y
 
-	if math.Abs(dx) > c.DeadZone || math.Abs(dy) > c.DeadZone ||
-		math.Abs(dx) > 1.0 || math.Abs(dy) > 1.0 {
-		c.X += dx * c.FollowSpeed * deltaTime
-		c.Y += dy * c.FollowSpeed * deltaTime
+	distance := math.Sqrt(dx*dx + dy*dy)
+	if distance > c.DeadZone {
+		smoothingFactor := c.FollowSpeed * deltaTime
+		c.X += dx * smoothingFactor
+		c.Y += dy * smoothingFactor
 	}
 }
 
 func (c *Camera) Follow(playerX, playerY, velocityX, velocityY float64) {
 	lookAheadX := velocityX * c.LookAhead
-	lookAheadY := velocityY * c.LookAhead * 0.3
+	lookAheadY := velocityY * c.LookAhead * 0.1
 
 	halfW := c.ViewportW / 2
 	halfH := c.ViewportH / 2
@@ -56,20 +56,20 @@ func (c *Camera) Follow(playerX, playerY, velocityX, velocityY float64) {
 	c.TargetY = playerY + lookAheadY - halfH + c.VerticalOffset
 
 	if c.WorldW > 0 {
-		if c.TargetX < 0 {
-			c.TargetX = 0
+		if c.TargetX < -100 {
+			c.TargetX = -100
 		}
-		if c.TargetX > c.WorldW-c.ViewportW {
-			c.TargetX = c.WorldW - c.ViewportW
+		if c.TargetX > c.WorldW-c.ViewportW+100 {
+			c.TargetX = c.WorldW - c.ViewportW + 100
 		}
 	}
 
 	if c.WorldH > 0 {
-		if c.TargetY < 0 {
-			c.TargetY = 0
+		if c.TargetY < -200 {
+			c.TargetY = -200
 		}
-		if c.TargetY > c.WorldH-c.ViewportH {
-			c.TargetY = c.WorldH - c.ViewportH
+		if c.TargetY > c.WorldH-c.ViewportH+100 {
+			c.TargetY = c.WorldH - c.ViewportH + 100
 		}
 	}
 }
@@ -80,9 +80,7 @@ func (c *Camera) GetView() (x, y float64) {
 
 func (c *Camera) GetTransform() *ebiten.GeoM {
 	var transform ebiten.GeoM
-
 	transform.Translate(-c.X, -c.Y)
-
 	return &transform
 }
 
