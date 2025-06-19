@@ -6,8 +6,25 @@
     "activeFile": "",
     "expandedProjectPaths": [
     ],
+    "file.lastUsedOpenFilter": "All Files (*)",
     "fileStates": {
         "": {
+            "scaleInDock": 1
+        },
+        "/home/temidaradev/Documents/ebijam25/assets/images/backgrounds/mountain-tiles/cloud.tmx": {
+            "scale": 0.33,
+            "selectedLayer": -1,
+            "viewCenter": {
+                "x": 937.8787878787878,
+                "y": 719.6969696969697
+            }
+        },
+        "/home/temidaradev/Documents/ebijam25/assets/images/backgrounds/mountain-tiles/cloud.tsx": {
+            "dynamicWrapping": false,
+            "scaleInDock": 1
+        },
+        "/home/temidaradev/Documents/ebijam25/assets/images/backgrounds/mountain-tiles/cloud_bg.tsx": {
+            "dynamicWrapping": true,
             "scaleInDock": 1
         },
         "desert.tmx#desert": {
@@ -15,17 +32,21 @@
         },
         "desert.tsx": {
             "dynamicWrapping": true,
+            "scaleInDock": 1,
             "scaleInEditor": 0.25
         }
     },
+    "last.externalTilesetPath": "/home/temidaradev/Documents/ebijam25/assets/images/backgrounds/mountain-tiles",
     "last.imagePath": "/home/temidaradev/Documents/ebijam25/assets/images/backgrounds/desert-tiles",
     "map.lastUsedFormat": "tmx",
     "openFiles": [
     ],
     "project": "desert.tiled-project",
     "recentFiles": [
+        "/home/temidaradev/Documents/ebijam25/assets/images/backgrounds/mountain-tiles/cloud.tmx",
         "desert.tsx"
     ],
+    "tileset.lastUsedFilter": "Tiled tileset files (*.tsx *.xml)",
     "tileset.lastUsedFormat": "tsx",
     "tileset.type": 1
 }

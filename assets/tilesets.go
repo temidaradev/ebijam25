@@ -1,6 +1,7 @@
 package assets
 
 import (
+	"image"
 	"log"
 	"path/filepath"
 
@@ -23,16 +24,15 @@ type TileMap struct {
 }
 
 var (
-	DesertTileMap *TileMap
-	ForestTileMap *TileMap
-	CaveTileMap   *TileMap
+	DesertTileMap   *TileMap
+	ForestTileMap   *TileMap
+	CaveTileMap     *TileMap
+	MountainTileMap *TileMap
 )
 
 func InitTileMaps() {
 	DesertTileMap = LoadTileMap("images/backgrounds/desert-tiles/desert.tmx")
-	// Add other tilemaps as needed
-	// ForestTileMap = LoadTileMap("images/backgrounds/forest-tiles/forest.tmx")
-	// CaveTileMap = LoadTileMap("images/backgrounds/cave-tiles/cave.tmx")
+	MountainTileMap = LoadTileMap("images/backgrounds/mountain-tiles/cloud.tmx")
 }
 
 func LoadTileMap(mapPath string) *TileMap {
@@ -50,51 +50,57 @@ func LoadTileMap(mapPath string) *TileMap {
 		MapHeight:      gameMap.Height,
 		PixelWidth:     gameMap.Width * gameMap.TileWidth,
 		PixelHeight:    gameMap.Height * gameMap.TileHeight,
-		CollisionSpace: resolv.NewSpace(gameMap.Width*gameMap.TileWidth, gameMap.Height*gameMap.TileHeight, 32, 32),
+		CollisionSpace: resolv.NewSpace(gameMap.Width*gameMap.TileWidth, gameMap.Height*gameMap.TileHeight, gameMap.TileWidth, gameMap.TileHeight),
 	}
 
-	tileMap.Image = renderTileMapToImage(gameMap)
+	tileMap.Image = renderTileMapToImage(gameMap, mapPath)
 	tileMap.createCollisionObjects()
-
 	return tileMap
 }
 
-func renderTileMapToImage(gameMap *tiled.Map) *ebiten.Image {
+func renderTileMapToImage(gameMap *tiled.Map, mapPath string) *ebiten.Image {
 	mapImage := ebiten.NewImage(gameMap.Width*gameMap.TileWidth, gameMap.Height*gameMap.TileHeight)
-
 	tileImages := make(map[uint32]*ebiten.Image)
 
 	for _, tileset := range gameMap.Tilesets {
-		log.Printf("Processing tileset: %s, FirstGID: %d, TileCount: %d", tileset.Name, tileset.FirstGID, tileset.TileCount)
 		if tileset.Tiles != nil {
 			for _, tile := range tileset.Tiles {
 				if tile.Image != nil {
-					// Construct the tile image path
-					tilePath := filepath.Join(filepath.Dir("images/backgrounds/desert-tiles/desert.tmx"), tile.Image.Source)
+					tilePath := filepath.Join(filepath.Dir(mapPath), tile.Image.Source)
 					tileImg := esset.GetAsset(assets, tilePath)
 					if tileImg != nil {
 						globalID := tileset.FirstGID + tile.ID
 						tileImages[globalID] = tileImg
-						log.Printf("Loaded tile image: %s for local tile ID %d -> global ID %d", tile.Image.Source, tile.ID, globalID)
-					} else {
-						log.Printf("Failed to load tile image: %s", tilePath)
 					}
 				}
 			}
 		}
-	}
-
-	// Render each layer
-	for _, layer := range gameMap.Layers {
-		log.Printf("Processing layer: %s", layer.Name)
-		if len(layer.Tiles) > 0 && layer.Visible {
-			log.Printf("Rendering tile layer: %s with %d tiles", layer.Name, len(layer.Tiles))
-			renderTileLayerFromImages(mapImage, layer, gameMap, tileImages)
-		} else {
-			log.Printf("Skipping layer %s: has %d tiles, visible: %v", layer.Name, len(layer.Tiles), layer.Visible)
+		if tileset.Image != nil {
+			tilesetPath := filepath.Join(filepath.Dir(mapPath), tileset.Image.Source)
+			tilesetImg := esset.GetAsset(assets, tilesetPath)
+			if tilesetImg != nil {
+				tileWidth := tileset.TileWidth
+				tileHeight := tileset.TileHeight
+				columns := uint32(tileset.Columns)
+				margin := tileset.Margin
+				spacing := tileset.Spacing
+				for tileID := uint32(0); tileID < uint32(tileset.TileCount); tileID++ {
+					col := int(tileID % columns)
+					row := int(tileID / columns)
+					srcX := margin + col*(tileWidth+spacing)
+					srcY := margin + row*(tileHeight+spacing)
+					tileImg := tilesetImg.SubImage(image.Rect(srcX, srcY, srcX+tileWidth, srcY+tileHeight)).(*ebiten.Image)
+					globalID := tileset.FirstGID + tileID
+					tileImages[globalID] = tileImg
+				}
+			}
 		}
 	}
-
+	for _, layer := range gameMap.Layers {
+		if len(layer.Tiles) > 0 && layer.Visible {
+			renderTileLayerFromImages(mapImage, layer, gameMap, tileImages)
+		}
+	}
 	return mapImage
 }
 
@@ -105,75 +111,71 @@ func renderTileLayerFromImages(mapImage *ebiten.Image, layer *tiled.Layer, gameM
 			if tileIndex >= len(layer.Tiles) {
 				continue
 			}
-
 			tile := layer.Tiles[tileIndex]
 			if tile.ID == 0 {
 				continue
 			}
-
-			// DEBUG: Log first few tiles to see what's happening
-			if tileIndex < 10 {
-				log.Printf("DEBUG: Tile at index %d (pos %d,%d): ID=%d", tileIndex, x, y, tile.ID)
-			}
-
-			// Add +1 to the tile ID to get the correct tile
 			correctedTileID := tile.ID + 1
 			tileImage := tileImages[correctedTileID]
 			if tileImage == nil {
-				if tileIndex < 10 { // Only log first few missing tiles to avoid spam
-					log.Printf("Warning: No image found for tile ID %d (corrected to %d) at position (%d, %d)", tile.ID, correctedTileID, x, y)
-				}
 				continue
 			}
-
-			// Calculate destination position
 			dstX := x * gameMap.TileWidth
 			dstY := y * gameMap.TileHeight
-
-			// Draw the tile
 			op := &ebiten.DrawImageOptions{}
 			op.GeoM.Translate(float64(dstX), float64(dstY))
-
 			mapImage.DrawImage(tileImage, op)
 		}
 	}
 }
 
-// Draw renders the tilemap to the screen with camera transformation
 func (tm *TileMap) Draw(screen *ebiten.Image, cameraX, cameraY, screenWidth, screenHeight float64) {
 	if tm.Image == nil {
 		return
 	}
-
-	// Calculate which portion of the tilemap is visible
-	// Apply camera offset
+	if tm == MountainTileMap {
+		tm.drawTiled(screen, cameraX, cameraY, screenWidth, screenHeight)
+		return
+	}
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(-cameraX, -cameraY)
-
-	// For now, draw the entire tilemap
-	// In a more optimized version, you would only draw the visible portion
 	screen.DrawImage(tm.Image, op)
 }
 
-// GetBounds returns the bounds of the tilemap in world coordinates
+func (tm *TileMap) drawTiled(screen *ebiten.Image, cameraX, cameraY, screenWidth, screenHeight float64) {
+	if tm.Image == nil {
+		return
+	}
+	tileMapWidth := float64(tm.PixelWidth)
+	tileMapHeight := float64(tm.PixelHeight)
+	tilesX := int((screenWidth+tileMapWidth)/tileMapWidth) + 2
+	tilesY := int((screenHeight+tileMapHeight)/tileMapHeight) + 2
+	startX := int(cameraX / tileMapWidth)
+	startY := int(cameraY / tileMapHeight)
+	for y := startY - 1; y < startY+tilesY; y++ {
+		for x := startX - 1; x < startX+tilesX; x++ {
+			op := &ebiten.DrawImageOptions{}
+			offsetX := float64(x)*tileMapWidth - cameraX
+			offsetY := float64(y)*tileMapHeight - cameraY
+			op.GeoM.Translate(offsetX, offsetY)
+			screen.DrawImage(tm.Image, op)
+		}
+	}
+}
+
 func (tm *TileMap) GetBounds() (x, y, width, height float64) {
 	return 0, 0, float64(tm.PixelWidth), float64(tm.PixelHeight)
 }
 
-// GetTileAt returns the tile ID at the given world coordinates
 func (tm *TileMap) GetTileAt(worldX, worldY float64) uint32 {
 	if tm.Map == nil {
 		return 0
 	}
-
 	tileX := int(worldX) / tm.TileWidth
 	tileY := int(worldY) / tm.TileHeight
-
 	if tileX < 0 || tileX >= tm.MapWidth || tileY < 0 || tileY >= tm.MapHeight {
 		return 0
 	}
-
-	// Get the first tile layer
 	for _, layer := range tm.Map.Layers {
 		if len(layer.Tiles) > 0 {
 			tileIndex := tileY*tm.MapWidth + tileX
@@ -182,39 +184,29 @@ func (tm *TileMap) GetTileAt(worldX, worldY float64) uint32 {
 			}
 		}
 	}
-
 	return 0
 }
 
-// createCollisionObjects creates collision boxes for solid tiles
 func (tm *TileMap) createCollisionObjects() {
 	if tm.Map == nil || tm.CollisionSpace == nil {
 		return
 	}
-
 	collisionCount := 0
 	totalTiles := 0
-
-	// Process each layer to create collision objects
 	for _, layer := range tm.Map.Layers {
 		if len(layer.Tiles) > 0 && layer.Visible {
-			log.Printf("Processing layer: %s with %d tiles", layer.Name, len(layer.Tiles))
 			for y := 0; y < tm.MapHeight; y++ {
 				for x := 0; x < tm.MapWidth; x++ {
 					tileIndex := y*tm.MapWidth + x
 					if tileIndex >= len(layer.Tiles) {
 						continue
 					}
-
 					tile := layer.Tiles[tileIndex]
 					totalTiles++
 					if tile.ID == 0 {
-						continue // Empty tile
+						continue
 					}
-
-					// Check if this tile should have collision using helper function
 					if IsTileSolid(tile.ID) {
-						// Create a collision rectangle for this tile
 						rect := resolv.NewRectangle(
 							float64(x*tm.TileWidth),
 							float64(y*tm.TileHeight),
@@ -227,33 +219,25 @@ func (tm *TileMap) createCollisionObjects() {
 			}
 		}
 	}
-
 	log.Printf("Created collision objects for tilemap: %d collision objects from %d total tiles", collisionCount, totalTiles)
 }
 
-// RecreateCollisionObjects clears and recreates all collision objects
 func (tm *TileMap) RecreateCollisionObjects() {
 	if tm.Map == nil {
 		return
 	}
-
-	// Recreate the collision space to clear all existing objects
-	tm.CollisionSpace = resolv.NewSpace(tm.Map.Width*tm.Map.TileWidth, tm.Map.Height*tm.Map.TileHeight, 32, 32)
-
-	// Recreate them with current rules
+	tm.CollisionSpace = resolv.NewSpace(tm.Map.Width*tm.Map.TileWidth, tm.Map.Height*tm.Map.TileHeight, tm.TileWidth, tm.TileHeight)
 	tm.createCollisionObjects()
 }
 
-// CheckCollision checks for collision with a rectangle at the given position
 func (tm *TileMap) CheckCollision(x, y, width, height float64) bool {
 	if tm.CollisionSpace == nil {
 		return false
 	}
-
-	// Create a temporary rectangle for collision checking
+	if tm == MountainTileMap {
+		return tm.checkTiledCollision(x, y, width, height)
+	}
 	checkRect := resolv.NewRectangle(x, y, width, height)
-
-	// Check for intersection with any shapes in the collision space
 	for _, shape := range tm.CollisionSpace.Shapes() {
 		if intersections := checkRect.Intersection(shape); len(intersections.Intersections) > 0 {
 			return true
@@ -262,28 +246,41 @@ func (tm *TileMap) CheckCollision(x, y, width, height float64) bool {
 	return false
 }
 
-// CheckMovement checks if movement to a new position is valid and returns adjusted position
+func (tm *TileMap) checkTiledCollision(x, y, width, height float64) bool {
+	tileMapWidth := float64(tm.PixelWidth)
+	tileMapHeight := float64(tm.PixelHeight)
+	leftTileX := int((x) / tileMapWidth)
+	rightTileX := int((x + width) / tileMapWidth)
+	topTileY := int((y) / tileMapHeight)
+	bottomTileY := int((y + height) / tileMapHeight)
+	for tileY := topTileY; tileY <= bottomTileY; tileY++ {
+		for tileX := leftTileX; tileX <= rightTileX; tileX++ {
+			localX := x - float64(tileX)*tileMapWidth
+			localY := y - float64(tileY)*tileMapHeight
+			checkRect := resolv.NewRectangle(localX, localY, width, height)
+			for _, shape := range tm.CollisionSpace.Shapes() {
+				if intersections := checkRect.Intersection(shape); len(intersections.Intersections) > 0 {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 func (tm *TileMap) CheckMovement(fromX, fromY, toX, toY, width, height float64) (float64, float64, bool) {
 	if tm.CollisionSpace == nil {
 		return toX, toY, true
 	}
-
-	// Create a rectangle at the target position
 	targetRect := resolv.NewRectangle(toX, toY, width, height)
-
-	// Check for intersections
 	for _, shape := range tm.CollisionSpace.Shapes() {
 		if intersections := targetRect.Intersection(shape); len(intersections.Intersections) > 0 {
-			// There's a collision, prevent the movement
 			return fromX, fromY, false
 		}
 	}
-
-	// No collision, movement is valid
 	return toX, toY, true
 }
 
-// CollisionResult represents the result of a collision check
 type CollisionResult struct {
 	HasCollision bool
 	AdjustedX    float64
@@ -294,7 +291,6 @@ type CollisionResult struct {
 	NormalY      float64
 }
 
-// CheckMovementAdvanced performs advanced collision detection with proper resolution
 func (tm *TileMap) CheckMovementAdvanced(fromX, fromY, toX, toY, width, height float64) CollisionResult {
 	result := CollisionResult{
 		HasCollision: false,
@@ -303,15 +299,11 @@ func (tm *TileMap) CheckMovementAdvanced(fromX, fromY, toX, toY, width, height f
 		CollisionX:   false,
 		CollisionY:   false,
 	}
-
 	if tm.CollisionSpace == nil {
 		return result
 	}
-
-	// Check horizontal movement first
 	horizontalRect := resolv.NewRectangle(toX, fromY, width, height)
 	hasHorizontalCollision := false
-
 	for _, shape := range tm.CollisionSpace.Shapes() {
 		if intersections := horizontalRect.Intersection(shape); len(intersections.Intersections) > 0 {
 			hasHorizontalCollision = true
@@ -320,11 +312,8 @@ func (tm *TileMap) CheckMovementAdvanced(fromX, fromY, toX, toY, width, height f
 			break
 		}
 	}
-
-	// Check vertical movement
 	verticalRect := resolv.NewRectangle(fromX, toY, width, height)
 	hasVerticalCollision := false
-
 	for _, shape := range tm.CollisionSpace.Shapes() {
 		if intersections := verticalRect.Intersection(shape); len(intersections.Intersections) > 0 {
 			hasVerticalCollision = true
@@ -333,26 +322,19 @@ func (tm *TileMap) CheckMovementAdvanced(fromX, fromY, toX, toY, width, height f
 			break
 		}
 	}
-
-	// Resolve collisions by adjusting position
 	if hasHorizontalCollision {
-		result.AdjustedX = fromX // Block horizontal movement completely
+		result.AdjustedX = fromX
 	} else {
-		result.AdjustedX = toX // Allow horizontal movement
+		result.AdjustedX = toX
 	}
-
 	if hasVerticalCollision {
-		// For vertical collision, we need to position the player properly
 		if toY > fromY {
-			// Player is falling down - find the top-most tile they would hit
 			bestY := toY
 			targetRect := resolv.NewRectangle(fromX, toY, width, height)
-
 			for _, shape := range tm.CollisionSpace.Shapes() {
 				if intersections := targetRect.Intersection(shape); len(intersections.Intersections) > 0 {
 					if rect, ok := shape.(*resolv.ConvexPolygon); ok {
 						shapePos := rect.Position()
-						// Position player on top of this tile
 						tileTop := shapePos.Y - height
 						if tileTop < bestY {
 							bestY = tileTop
@@ -362,44 +344,34 @@ func (tm *TileMap) CheckMovementAdvanced(fromX, fromY, toX, toY, width, height f
 			}
 			result.AdjustedY = bestY
 		} else {
-			// Player is moving up, block movement
 			result.AdjustedY = fromY
 		}
 	} else {
-		result.AdjustedY = toY // Allow vertical movement
+		result.AdjustedY = toY
 	}
-
 	return result
 }
 
-// CheckGroundCollision specifically checks for ground collision (useful for gravity)
 func (tm *TileMap) CheckGroundCollision(x, y, width, height float64) (bool, float64) {
 	if tm.CollisionSpace == nil {
 		return false, y
 	}
-
-	// Check slightly below the current position
 	checkRect := resolv.NewRectangle(x, y+1, width, height)
-
 	for _, shape := range tm.CollisionSpace.Shapes() {
 		if intersections := checkRect.Intersection(shape); len(intersections.Intersections) > 0 {
-			// Found ground collision, return the top of the collision shape
 			if rect, ok := shape.(*resolv.ConvexPolygon); ok {
 				shapePos := rect.Position()
 				return true, shapePos.Y - height
 			}
 		}
 	}
-
 	return false, y
 }
 
-// GetCollisionShapes returns all collision shapes for debugging
 func (tm *TileMap) GetCollisionShapes() []*resolv.ConvexPolygon {
 	if tm.CollisionSpace == nil {
 		return nil
 	}
-
 	var shapes []*resolv.ConvexPolygon
 	for _, shape := range tm.CollisionSpace.Shapes() {
 		if rect, ok := shape.(*resolv.ConvexPolygon); ok {
@@ -409,20 +381,15 @@ func (tm *TileMap) GetCollisionShapes() []*resolv.ConvexPolygon {
 	return shapes
 }
 
-// Helper function to check if a specific tile ID should be solid
 func IsTileSolid(tileID uint32) bool {
-	// Every non-empty tile is now treated as ground/solid
-	// This removes borders and makes all tiles act as collision surfaces
-	return tileID > 0 // Any tile with ID > 0 is solid
+	return tileID > 0
 }
 
-// GetTileCollisionInfo returns collision information for debugging
 func (tm *TileMap) GetTileCollisionInfo(worldX, worldY float64) (uint32, bool) {
 	tileID := tm.GetTileAt(worldX, worldY)
 	return tileID, IsTileSolid(tileID)
 }
 
-// Legacy function for backward compatibility
 func GetMap() *TileMap {
 	return DesertTileMap
 }

@@ -93,15 +93,21 @@ func (g *Game) Update() error {
 
 		if inpututil.IsKeyJustPressed(ebiten.Key1) {
 			g.currentEnvironment = "desert"
+			g.player.UpdateCollisionSystem(assets.DesertTileMap)
 		}
 		if inpututil.IsKeyJustPressed(ebiten.Key2) {
 			g.currentEnvironment = "forest"
+			// Update when forest tilemap is available
+			// g.player.UpdateCollisionSystem(assets.ForestTileMap)
 		}
 		if inpututil.IsKeyJustPressed(ebiten.Key3) {
 			g.currentEnvironment = "mountains"
+			g.player.UpdateCollisionSystem(assets.MountainTileMap)
 		}
 		if inpututil.IsKeyJustPressed(ebiten.Key4) {
 			g.currentEnvironment = "cave"
+			// Update when cave tilemap is available
+			// g.player.UpdateCollisionSystem(assets.CaveTileMap)
 		}
 
 		if inpututil.IsKeyJustPressed(ebiten.KeyC) {
@@ -147,10 +153,14 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		layers := assets.GetLayersByEnvironment(g.currentEnvironment)
 		assets.DrawBackgroundLayers(screen, layers, cameraX, cameraY, screenWidth, screenHeight)
 
-		// Draw the desert tilemap if in desert environment
+		// Draw the tilemap based on current environment
 		if g.currentEnvironment == "desert" {
 			if assets.DesertTileMap != nil {
 				assets.DesertTileMap.Draw(screen, cameraX, cameraY, float64(screenWidth), float64(screenHeight))
+			}
+		} else if g.currentEnvironment == "mountains" {
+			if assets.MountainTileMap != nil {
+				assets.MountainTileMap.Draw(screen, cameraX, cameraY, float64(screenWidth), float64(screenHeight))
 			}
 		}
 
@@ -165,38 +175,6 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		tps := ebiten.ActualTPS()
 		fpsTpsText := fmt.Sprintf("FPS: %.0f  TPS: %.0f", fps, tps)
 		esset.DrawText(screen, fpsTpsText, 10, 10, assets.FontFaceS, color.RGBA{255, 255, 255, 255})
-
-		// Draw debug information
-		playerDebugText := fmt.Sprintf("Player: (%.0f, %.0f) OnGround: %v VelY: %.0f", g.player.X, g.player.Y, g.player.OnGround, g.player.VelocityY)
-		esset.DrawText(screen, playerDebugText, 10, 30, assets.FontFaceS, color.RGBA{255, 255, 255, 255})
-
-		// Show controls
-		esset.DrawText(screen, "C: Toggle collision boxes | R: Reset player position", 10, 50, assets.FontFaceS, color.RGBA{200, 200, 200, 255})
-
-		// Show tile collision info at player position
-		if assets.DesertTileMap != nil {
-			hitboxX, hitboxY, _, _ := g.player.GetHitboxBounds()
-			tileID, isSolid := assets.DesertTileMap.GetTileCollisionInfo(hitboxX, hitboxY)
-			tileDebugText := fmt.Sprintf("Tile at player: ID=%d Solid=%v", tileID, isSolid)
-			esset.DrawText(screen, tileDebugText, 10, 50, assets.FontFaceS, color.RGBA{255, 255, 255, 255})
-		}
-
-		// Controls help
-		controlsText := "Controls: C=Toggle Collision Boxes, R=Reset Position"
-		esset.DrawText(screen, controlsText, 10, 70, assets.FontFaceS, color.RGBA{200, 200, 200, 255})
-
-		// Draw collision boxes if enabled
-		if g.showCollisionBoxes {
-			g.DrawCollisionBoxes(screen, camera)
-		}
-
-		// Draw stuck indicator if player is stuck
-		if g.player.IsStuck() {
-			esset.DrawText(screen, "PLAYER STUCK - Press R to reset", 10, 70, assets.FontFaceS, color.RGBA{255, 0, 0, 255})
-		}
-		if g.showCollisionBoxes {
-			g.DrawCollisionBoxes(screen, camera)
-		}
 
 	case GameStatePaused:
 		camera := g.player.GetCamera()
@@ -251,33 +229,5 @@ func (g *Game) drawPlayerWithCamera(screen *ebiten.Image, camera *Camera) {
 		op.GeoM.Concat(*cameraTransform)
 
 		g.player.AnimationManager.DrawWithOptions(screen, op)
-	}
-}
-
-// DrawCollisionBoxes draws collision boxes for debugging
-func (g *Game) DrawCollisionBoxes(screen *ebiten.Image, camera *Camera) {
-	if g.currentEnvironment == "desert" && assets.DesertTileMap != nil {
-		// Draw tile-based collision boxes
-		tileWidth := float64(assets.DesertTileMap.TileWidth)
-		tileHeight := float64(assets.DesertTileMap.TileHeight)
-
-		// Draw a simple grid to show collision areas
-		for y := 0; y < 10; y++ {
-			for x := 0; x < 20; x++ {
-				worldX := float64(x) * tileWidth
-				worldY := float64(y) * tileHeight
-
-				// Check if this tile has collision
-				if assets.DesertTileMap.CheckCollision(worldX, worldY, tileWidth-1, tileHeight-1) {
-					screenX, screenY := camera.WorldToScreen(worldX, worldY)
-
-					// Draw collision box outline
-					vector.StrokeRect(screen,
-						float32(screenX), float32(screenY),
-						float32(tileWidth), float32(tileHeight),
-						1, color.RGBA{255, 0, 255, 100}, false)
-				}
-			}
-		}
 	}
 }

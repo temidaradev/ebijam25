@@ -13,7 +13,7 @@ This is a game about reassembly—of memory, space, identity. There is no dialog
 
 ## Core Concept
 
-You awaken in the echo of a world long gone. Its form is broken, its essence divided. Three layers persist:
+You awaken in the echo of a world long gone. Its essence divided. Three layers persist:
 
 - **Mind**: Abstract logic and dreamlike architecture. Gravity shifts, space folds, paths defy reason.
 - **Heart**: Emotionally-charged terrain shaped by memories, longing, and loss.

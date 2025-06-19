@@ -547,3 +547,8 @@ func absFloat64(x float64) float64 {
 	}
 	return x
 }
+
+// UpdateCollisionSystem updates the player's collision system with a new tilemap
+func (p *Player) UpdateCollisionSystem(tileMap *assets.TileMap) {
+	p.CollisionSystem = NewCollisionSystem(tileMap)
+}

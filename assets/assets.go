@@ -354,13 +354,13 @@ func ForestLayers() []BackgroundLayer {
 
 func MountainsLayers() []BackgroundLayer {
 	return []BackgroundLayer{
-		{MountainsSky, "mountains_sky", 0.05, 0.02, -6, 0, 0, true, false, 2, 2},
-		{MountainsCloudsBg, "mountains_clouds_bg", 0.1, 0.05, -5, 0, 10, true, false, 2, 2},
-		{MountainsGlacial, "mountains_glacial", 0.2, 0.08, -4, 0, 80, true, false, 2, 2},
-		{MountainsCloudsMg3, "mountains_clouds_mg3", 0.25, 0.1, -3, 50, 120, true, false, 2, 2},
-		{MountainsCloudsMg2, "mountains_clouds_mg2", 0.4, 0.15, -2, 208, 140, true, false, 2, 2},
-		{MountainsCloudsMg1, "mountains_clouds_mg1", 0.6, 0.25, -1, 128, 145, true, false, 2, 2},
-		{MountainsCloudLonely, "mountains_cloud_lonely", 0.8, 0.35, 0, 320, 112, false, false, 2, 2},
+		{MountainsSky, "mountains_sky", 0.05, 0.02, -6, 0, 0, true, false, 2.5, 2.5},
+		{MountainsCloudsBg, "mountains_clouds_bg", 0.1, 0.05, -5, 0, 10, true, false, 2.5, 2.5},
+		{MountainsGlacial, "mountains_glacial", 0.2, 0.08, -4, 0, 80, true, false, 2.5, 2.5},
+		{MountainsCloudsMg3, "mountains_clouds_mg3", 0.25, 0.1, -3, 50, 120, true, false, 2.5, 2.5},
+		{MountainsCloudsMg2, "mountains_clouds_mg2", 0.4, 0.15, -2, 208, 140, true, false, 2.5, 2.5},
+		{MountainsCloudsMg1, "mountains_clouds_mg1", 0.6, 0.25, -1, 128, 145, true, false, 2.5, 2.5},
+		{MountainsCloudLonely, "mountains_cloud_lonely", 0.8, 0.35, 0, 320, 112, false, false, 2.5, 2.5},
 	}
 }
 
