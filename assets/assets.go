@@ -37,6 +37,7 @@ func InitCharacterAnimations() *SimpleAnimationManager {
 	animManager.AddAnimation("fall", 22, 23, 0.1, true)
 	animManager.AddAnimation("walk", 155, 160, 0.18, true)
 	animManager.AddAnimation("roll", 24, 27, 0.06, false)
+	animManager.AddAnimation("slip", 24, 25, 0.08, false)
 
 	animManager.AddAnimation("attack1", 42, 46, 0.05, false)
 	animManager.AddAnimation("attack2", 47, 52, 0.05, false)

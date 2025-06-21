@@ -46,9 +46,9 @@ func NewGame() *Game {
 	playerStartX := 100.0
 	playerStartY := 100.0
 
-	if assets.DesertTileMap != nil {
-		assets.DesertTileMap.RecreateCollisionObjects()
-	}
+	// if assets.DesertTileMap != nil {
+	// 	assets.DesertTileMap.RecreateCollisionObjects()
+	// }
 
 	enemies := []*Enemy{
 		NewShooterEnemy(400, 350),
@@ -125,6 +125,7 @@ func (g *Game) Update() error {
 			for _, projectile := range enemy.Projectiles {
 				if g.player.CheckProjectileCollision(projectile) {
 					g.player.TakeDamage(1)
+					g.player.ApplySlowdown(0.5, 1.0) // 50% speed for 1 second
 					projectile.IsActive = false
 				}
 			}
@@ -144,11 +145,11 @@ func (g *Game) Update() error {
 				if playerX < enemyX+enemyW && playerX+playerW > enemyX &&
 					playerY < enemyY+enemyH && playerY+playerH > enemyY {
 					g.player.TakeDamage(enemy.GetDamageDealt())
+					g.player.ApplySlowdown(0.5, 1.0)
 				}
 			}
 		}
 
-		// Check if player died and trigger respawn menu
 		if g.player.IsPlayerDead() {
 			g.state = GameStateDead
 			g.menu.SetRespawnState()
@@ -169,13 +170,11 @@ func (g *Game) Update() error {
 		g.menu.Update()
 
 		if g.menu.IsRestartRequested() {
-			// Restart the entire game - reset everything to initial state
 			g.restartGame()
 			g.state = GameStatePlaying
 		}
 
 		if g.menu.GetState() == MenuStateMain {
-			// Player chose to exit to main menu
 			g.state = GameStateMenu
 		}
 	}
@@ -336,9 +335,7 @@ func (g *Game) drawHealthBar(screen *ebiten.Image) {
 	esset.DrawText(screen, healthText, float64(healthBarX), float64(healthBarY+healthBarHeight+5), assets.FontFaceS, color.RGBA{255, 255, 255, 255})
 }
 
-// restartGame resets the game to initial state
 func (g *Game) restartGame() {
-	// Reset player to initial spawn position and full health
 	g.player.X = 100.0
 	g.player.Y = g.player.GroundLevel - float64(SpriteHeight)*g.player.Scale
 	g.player.VelocityX = 0
@@ -348,7 +345,6 @@ func (g *Game) restartGame() {
 	g.player.IsDead = false
 	g.player.InvulnTimer = 0
 
-	// Reset camera position
 	if g.player.Camera != nil {
 		g.player.Camera.X = 0
 		g.player.Camera.Y = 0
@@ -356,14 +352,11 @@ func (g *Game) restartGame() {
 		g.player.Camera.TargetY = 0
 	}
 
-	// Reset any other game state (enemies, etc.)
 	for _, enemy := range g.enemies {
 		enemy.Health = DefaultEnemyHealth
 		enemy.IsActive = true
-		// Clear projectiles
 		enemy.Projectiles = enemy.Projectiles[:0]
 	}
 
-	// Reset parallax offset
 	g.parallaxOffset = 0
 }

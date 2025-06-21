@@ -32,7 +32,6 @@ var (
 
 func InitTileMaps() {
 	DesertTileMap = LoadTileMap("images/backgrounds/desert-tiles/desert.tmx")
-	MountainTileMap = LoadTileMap("images/backgrounds/mountain-tiles/cloud.tmx")
 }
 
 func LoadTileMap(mapPath string) *TileMap {
@@ -220,14 +219,6 @@ func (tm *TileMap) createCollisionObjects() {
 		}
 	}
 	log.Printf("Created collision objects for tilemap: %d collision objects from %d total tiles", collisionCount, totalTiles)
-}
-
-func (tm *TileMap) RecreateCollisionObjects() {
-	if tm.Map == nil {
-		return
-	}
-	tm.CollisionSpace = resolv.NewSpace(tm.Map.Width*tm.Map.TileWidth, tm.Map.Height*tm.Map.TileHeight, tm.TileWidth, tm.TileHeight)
-	tm.createCollisionObjects()
 }
 
 func (tm *TileMap) CheckCollision(x, y, width, height float64) bool {

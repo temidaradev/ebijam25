@@ -30,6 +30,10 @@ type Player struct {
 	jumpBuffer     float64
 	coyoteBuffer   float64
 
+	SpeedMultiplier  float64
+	SlowdownTimer    float64
+	SlowdownDuration float64
+
 	WorldWidth  float64
 	WorldHeight float64
 	GroundLevel float64
@@ -84,6 +88,10 @@ type Player struct {
 	// Input state (for physics calculations)
 	IsMovingLeft  bool
 	IsMovingRight bool
+
+	// Slipping state
+	IsSlipping bool
+	SlipTimer  float64
 }
 
 const (
@@ -150,6 +158,11 @@ func NewPlayer(x, y, worldWidth, worldHeight, groundLevel float64, tileMap *asse
 		TileMap:          tileMap,
 		CollisionSystem:  NewCollisionSystem(tileMap),
 
+		// Slowdown system
+		SpeedMultiplier:  1.0,
+		SlowdownTimer:    0,
+		SlowdownDuration: 0,
+
 		// Parkour mechanics
 		CanWallJump:   true,
 		WallJumpTimer: 0,
@@ -201,6 +214,7 @@ func NewPlayer(x, y, worldWidth, worldHeight, groundLevel float64, tileMap *asse
 
 func (p *Player) Update(deltaTime float64) {
 	p.updateTimers(deltaTime)
+	p.updateSlowdown(deltaTime)
 
 	p.Controller.Update()
 
@@ -270,6 +284,14 @@ func (p *Player) updateTimers(deltaTime float64) {
 			p.CanWallGrab = false // Player gets tired and falls
 		}
 	}
+
+	// Slip timer
+	if p.SlipTimer > 0 {
+		p.SlipTimer -= deltaTime
+		if p.SlipTimer <= 0 {
+			p.IsSlipping = false
+		}
+	}
 }
 
 func (p *Player) handleInput(deltaTime float64) {
@@ -294,8 +316,9 @@ func (p *Player) handleInput(deltaTime float64) {
 	p.IsMovingLeft = (leftPressed || controllerLeft)
 	p.IsMovingRight = (rightPressed || controllerRight)
 
-	// Handle attacks
-	if attackPressed && !p.IsAttacking && p.AttackCooldown <= 0 {
+	// Handle attacks (annoying restriction: can't attack while sliding AND brief delay after landing)
+	landingDelay := p.OnGround && p.groundBuffer > 0 // Just landed
+	if attackPressed && !p.IsAttacking && p.AttackCooldown <= 0 && !p.IsRolling && !landingDelay {
 		p.performAttack()
 	}
 
@@ -303,37 +326,60 @@ func (p *Player) handleInput(deltaTime float64) {
 	if !p.IsRolling && rollPressed && p.OnGround {
 		p.IsRolling = true
 		p.RollTimer = RollDuration
+		// Inherit current velocity for momentum-based sliding
+		slideSpeed := RollSpeed
+		if math.Abs(p.VelocityX) > slideSpeed {
+			// Maintain momentum if moving faster than roll speed
+			slideSpeed = math.Abs(p.VelocityX)
+		}
+
 		if p.FacingRight {
-			p.VelocityX = RollSpeed
+			p.VelocityX = slideSpeed
 		} else {
-			p.VelocityX = -RollSpeed
+			p.VelocityX = -slideSpeed
 		}
 	}
 
 	// Continue sliding while key is held or timer is active
 	if p.IsRolling {
-		// If key is held, keep sliding (reset timer to extend slide)
+		// Enhanced slide control for parkour
 		if slideHeld && p.OnGround {
-			p.RollTimer = RollDuration * 0.5 // Shorter timer for held slides
+			p.RollTimer = RollDuration * 0.6 // Extended slide duration
 		}
 
-		p.RollTimer -= deltaTime
-		if p.RollTimer <= 0 || !p.OnGround {
-			p.IsRolling = false
+		// Apply slide friction gradually
+		slideFriction := 0.95 // Less friction for smoother slides
+		if p.OnGround {
+			p.VelocityX *= slideFriction
 		}
 
-		// Continue movement during slide but allow direction change
+		// Allow directional control during slide (but maintain momentum)
 		if (leftPressed || controllerLeft) && !(rightPressed || controllerRight) {
-			if p.VelocityX > -RollSpeed {
-				p.VelocityX = -RollSpeed
+			if p.VelocityX > 0 {
+				// Turning around during slide - reduce speed more
+				p.VelocityX *= 0.8
+			}
+			if p.VelocityX > -RollSpeed*0.5 {
+				p.VelocityX = math.Max(p.VelocityX-RollSpeed*0.3, -RollSpeed)
 			}
 			p.FacingRight = false
 		} else if (rightPressed || controllerRight) && !(leftPressed || controllerLeft) {
-			if p.VelocityX < RollSpeed {
-				p.VelocityX = RollSpeed
+			if p.VelocityX < 0 {
+				// Turning around during slide - reduce speed more
+				p.VelocityX *= 0.8
+			}
+			if p.VelocityX < RollSpeed*0.5 {
+				p.VelocityX = math.Min(p.VelocityX+RollSpeed*0.3, RollSpeed)
 			}
 			p.FacingRight = true
 		}
+
+		// End slide conditions
+		p.RollTimer -= deltaTime
+		if p.RollTimer <= 0 || !p.OnGround || math.Abs(p.VelocityX) < 50 {
+			p.IsRolling = false
+		}
+
 		return
 	}
 
@@ -346,9 +392,9 @@ func (p *Player) handleInput(deltaTime float64) {
 			if intensity > 1.0 {
 				intensity = 1.0
 			}
-			p.VelocityX = -p.MaxSpeed * intensity
+			p.VelocityX = -p.MaxSpeed * intensity * p.SpeedMultiplier
 		} else {
-			p.VelocityX = -p.MaxSpeed
+			p.VelocityX = -p.MaxSpeed * p.SpeedMultiplier
 		}
 		p.FacingRight = false
 	} else if (rightPressed || controllerRight) && !(leftPressed || controllerLeft) {
@@ -357,25 +403,35 @@ func (p *Player) handleInput(deltaTime float64) {
 			if intensity > 1.0 {
 				intensity = 1.0
 			}
-			p.VelocityX = p.MaxSpeed * intensity
+			p.VelocityX = p.MaxSpeed * intensity * p.SpeedMultiplier
 		} else {
-			p.VelocityX = p.MaxSpeed
+			p.VelocityX = p.MaxSpeed * p.SpeedMultiplier
 		}
 		p.FacingRight = true
 	} else {
-		// Improved deceleration for parkour
 		var decelAmount float64
 		if p.OnGround {
-			// Much faster ground deceleration to prevent sliding
-			// Use different friction based on current speed for better feel
-			speedMultiplier := math.Max(1.0, math.Abs(p.VelocityX)/100.0) // More friction at higher speeds
-			decelAmount = p.Deceleration * 3.5 * speedMultiplier * deltaTime
+			baseDecel := p.Deceleration * 2.8
+			speedFactor := math.Min(2.0, math.Abs(p.VelocityX)/150.0)
+			decelAmount = baseDecel * speedFactor * deltaTime
+
+			if math.Abs(p.VelocityX) > p.MaxSpeed*1.2 {
+				if math.Mod(p.X+p.Y, 100) < 10 {
+					decelAmount *= 0.1
+					if !p.IsSlipping {
+						p.IsSlipping = true
+						p.SlipTimer = 0.4
+					}
+				}
+			}
+
+			if math.Abs(p.VelocityX) > p.MaxSpeed*1.5 {
+				decelAmount *= 0.6
+			}
 		} else if p.OnWallLeft || p.OnWallRight {
-			// Moderate air friction on walls
-			decelAmount = p.Deceleration * 0.8 * deltaTime
+			decelAmount = p.Deceleration * 0.7 * deltaTime
 		} else {
-			// Minimal air friction for better air control
-			decelAmount = p.Deceleration * 0.2 * deltaTime
+			decelAmount = p.Deceleration * 0.15 * deltaTime
 		}
 
 		if p.VelocityX > decelAmount {
@@ -386,8 +442,8 @@ func (p *Player) handleInput(deltaTime float64) {
 			p.VelocityX = 0
 		}
 
-		// Stop completely when velocity is very low to prevent micro-sliding
-		if math.Abs(p.VelocityX) < MinVelocityThreshold {
+		velocityThreshold := 15.0
+		if math.Abs(p.VelocityX) < velocityThreshold {
 			p.VelocityX = 0
 		}
 	}
@@ -397,17 +453,14 @@ func (p *Player) handleInput(deltaTime float64) {
 	}
 
 	if p.jumpBuffer > 0 {
-		// Wall climbing - if holding against wall and can grab
 		if (p.OnWallLeft || p.OnWallRight) && p.CanWallGrab && !p.OnGround {
-			// Check if moving toward the wall (holding against it)
 			if (p.OnWallLeft && p.IsMovingLeft) ||
 				(p.OnWallRight && p.IsMovingRight) {
-				// Start wall climbing
 				p.IsWallClimbing = true
 				p.WallGrabTimer = WALL_GRAB_STAMINA
-				p.VelocityY = -WALL_CLIMB_SPEED // Climb up
+				p.VelocityY = -WALL_CLIMB_SPEED
 				p.jumpBuffer = 0
-				p.DoubleJumpUsed = false // Reset double jump on wall grab
+				p.DoubleJumpUsed = false
 			} else {
 				// Wall jump (jumping away from wall)
 				if p.OnWallLeft {
@@ -423,15 +476,17 @@ func (p *Player) handleInput(deltaTime float64) {
 				p.DoubleJumpUsed = false
 			}
 		} else if p.OnGround || p.coyoteBuffer > 0 {
-			// Ground jump or coyote time jump
 			p.VelocityY = p.JumpPower
 			p.OnGround = false
 			p.jumpBuffer = 0
 			p.coyoteBuffer = 0
-			p.DoubleJumpUsed = false // Reset double jump on ground jump
+			p.DoubleJumpUsed = false
+
+			if math.Mod(p.X*p.Y, 100) < 10 {
+				p.VelocityY *= 0.7
+			}
 		} else if p.HasDoubleJump && !p.DoubleJumpUsed && !p.OnGround {
-			// Double jump in air
-			p.VelocityY = p.JumpPower * 0.85 // Slightly weaker double jump
+			p.VelocityY = p.JumpPower * 0.85
 			p.DoubleJumpUsed = true
 			p.jumpBuffer = 0
 		}
@@ -441,21 +496,17 @@ func (p *Player) handleInput(deltaTime float64) {
 func (p *Player) updatePhysics(deltaTime float64) {
 	wasOnGround := p.OnGround
 
-	// Variable jump height - reduce upward velocity if jump key is released
 	jumpHeld := ebiten.IsKeyPressed(ebiten.KeySpace) ||
 		ebiten.IsKeyPressed(ebiten.KeyW) ||
 		ebiten.IsKeyPressed(ebiten.KeyArrowUp) ||
 		p.Controller.IsJumpPressed()
 
 	if p.VelocityY < -100 && !jumpHeld {
-		// Cut jump short if key is released
 		p.VelocityY *= 0.5
 	}
 
-	// Apply gravity with wall sliding and wall climbing
 	if !p.OnGround {
 		if p.IsWallClimbing {
-			// No gravity while wall climbing, but check if still holding wall
 			if !((p.OnWallLeft && p.IsMovingLeft) ||
 				(p.OnWallRight && p.IsMovingRight)) {
 				// Player let go of wall
@@ -463,30 +514,24 @@ func (p *Player) updatePhysics(deltaTime float64) {
 				p.WallGrabTimer = 0
 			}
 		} else if (p.OnWallLeft || p.OnWallRight) && p.VelocityY > 0 {
-			// Wall sliding - reduce fall speed
 			p.VelocityY += Gravity * deltaTime * 0.3
 			if p.VelocityY > WALL_SLIDE_SPEED {
 				p.VelocityY = WALL_SLIDE_SPEED
 			}
 		} else {
-			// Normal gravity
 			p.VelocityY += Gravity * deltaTime
 		}
 	}
 
-	// Calculate movement deltas
 	deltaX := p.VelocityX * deltaTime
 	deltaY := p.VelocityY * deltaTime
 
 	if p.CollisionSystem != nil {
-		// Get current position
 		currentBox := p.GetCollisionBox()
 
-		// Calculate target position
 		targetX := currentBox.X + deltaX
 		targetY := currentBox.Y + deltaY
 
-		// Check horizontal movement first
 		horizontalBox := CollisionBox{
 			X:      targetX,
 			Y:      currentBox.Y,
@@ -494,7 +539,6 @@ func (p *Player) updatePhysics(deltaTime float64) {
 			Height: currentBox.Height,
 		}
 
-		// Check vertical movement
 		verticalBox := CollisionBox{
 			X:      currentBox.X,
 			Y:      targetY,
@@ -502,51 +546,56 @@ func (p *Player) updatePhysics(deltaTime float64) {
 			Height: currentBox.Height,
 		}
 
-		// Final target position
 		finalX := targetX
 		finalY := targetY
 
-		// Check horizontal collision
 		if p.CollisionSystem.CheckCollisionAtPoint(horizontalBox) {
-			finalX = currentBox.X // Block horizontal movement
+			finalX = currentBox.X
 			p.VelocityX = 0
 		}
 
-		// Check vertical collision
 		if p.CollisionSystem.CheckCollisionAtPoint(verticalBox) {
-			finalY = currentBox.Y // Block vertical movement
-			if p.VelocityY > 0 {  // Landing on ground
+			finalY = currentBox.Y
+			if p.VelocityY > 0 {
 				p.VelocityY = 0
 				if !p.OnGround {
-					// Just landed - apply strong friction based on landing velocity
 					landingSpeed := math.Abs(p.VelocityY)
-					frictionMultiplier := 0.3 // Base friction (keep 30% of horizontal velocity)
 
-					// Apply extra friction for hard landings
-					if landingSpeed > 300 {
-						frictionMultiplier = 0.1 // Keep only 10% for hard landings
+					var frictionMultiplier float64
+					if landingSpeed > 400 {
+						frictionMultiplier = 0.6
+					} else if landingSpeed > 250 {
+						frictionMultiplier = 0.7
 					} else if landingSpeed > 150 {
-						frictionMultiplier = 0.2 // Keep 20% for medium landings
+						frictionMultiplier = 0.8
+					} else {
+						frictionMultiplier = 0.9
+					}
+
+					horizontalSpeed := math.Abs(p.VelocityX)
+					if horizontalSpeed > p.MaxSpeed*1.2 {
+						frictionMultiplier = math.Max(frictionMultiplier, 0.8)
 					}
 
 					p.VelocityX *= frictionMultiplier
-					p.DoubleJumpUsed = false // Reset double jump on landing
-					p.CanWallGrab = true     // Reset wall grab ability on landing
-					p.IsWallClimbing = false // Stop wall climbing
+					p.DoubleJumpUsed = false
+					p.CanWallGrab = true
+					p.IsWallClimbing = false
 					p.WallGrabTimer = 0
+
+					p.groundBuffer = 0.15
 				}
 				p.OnGround = true
-			} else if p.VelocityY < 0 { // Hit ceiling
+			} else if p.VelocityY < 0 {
 				p.VelocityY = 0
+				p.VelocityX *= 0.8
 			}
 		} else {
-			p.OnGround = false // In air
+			p.OnGround = false
 		}
 
-		// Update position
 		p.SetPosition(finalX, finalY)
 
-		// Check if player is on ground (check slightly below current position)
 		groundCheckBox := CollisionBox{
 			X:      finalX,
 			Y:      finalY + 5,
@@ -555,46 +604,31 @@ func (p *Player) updatePhysics(deltaTime float64) {
 		}
 
 		p.OnGround = p.CollisionSystem.CheckCollisionAtPoint(groundCheckBox)
-
-		// Removed boundary checks - player can move outside world bounds
 	} else {
-		// Fallback to basic movement if no collision system
 		p.X += deltaX
 		p.Y += deltaY
-
-		// Removed boundary checks - player can move outside world bounds
-
-		// No artificial ground - player will fall until hitting tiles
 		p.OnGround = false
 	}
 
-	// Handle coyote time and ground state
 	if wasOnGround && !p.OnGround && p.VelocityY >= 0 {
 		p.coyoteBuffer = p.CoyoteTime
 	}
 
-	// Reset OnGround if we're moving up (jumping)
 	if p.VelocityY < -10 {
 		p.OnGround = false
 	}
-
-	// Remove artificial ground fallback - only use tile collision
 }
 
 func (p *Player) updateAnimation() {
 	if p.AnimationManager != nil {
-		// Priority: Attack animations take precedence
 		if p.IsAttacking {
-			// Choose attack animation based on combo and ground state
 			if !p.OnGround {
-				// Air attacks
 				if p.ComboCount <= 1 {
 					p.AnimationManager.SetAnimation("air-attack1")
 				} else {
 					p.AnimationManager.SetAnimation("air-attack2")
 				}
 			} else {
-				// Ground attacks
 				switch p.ComboCount {
 				case 1:
 					p.AnimationManager.SetAnimation("attack1")
@@ -609,28 +643,28 @@ func (p *Player) updateAnimation() {
 			return
 		}
 
-		// Check if player is hurt (invulnerable)
 		if p.InvulnTimer > 0 {
 			p.AnimationManager.SetAnimation("hurt")
 			return
 		}
 
-		// Rolling animation
 		if p.IsRolling {
 			p.AnimationManager.SetAnimation("roll")
 			return
 		}
 
-		// Wall climbing animation
-		if p.IsWallClimbing {
-			p.AnimationManager.SetAnimation("jump") // Use jump animation for wall climbing
+		if p.IsSlipping && p.OnGround {
+			p.AnimationManager.SetAnimation("slip")
 			return
 		}
 
-		// Movement animations
+		if p.IsWallClimbing {
+			p.AnimationManager.SetAnimation("jump")
+			return
+		}
+
 		if !p.OnGround {
 			if (p.OnWallLeft || p.OnWallRight) && p.VelocityY > 0 {
-				// Wall sliding
 				p.AnimationManager.SetAnimation("fall")
 			} else if p.VelocityY > 50 {
 				p.AnimationManager.SetAnimation("fall")
@@ -747,7 +781,6 @@ func (p *Player) SetCameraSettings(followSpeed, lookAhead, deadZone, verticalOff
 	}
 }
 
-// CheckCollisionAtPosition checks if the player would collide at a specific position
 func (p *Player) CheckCollisionAtPosition(x, y float64) bool {
 	if p.TileMap == nil {
 		return false
@@ -761,7 +794,6 @@ func (p *Player) CheckCollisionAtPosition(x, y float64) bool {
 	return p.TileMap.CheckCollision(x+hitboxOffsetX, y+hitboxOffsetY, hitboxWidth, hitboxHeight)
 }
 
-// IsOnGroundCheck performs a more precise ground check
 func (p *Player) IsOnGroundCheck() bool {
 	if p.TileMap == nil {
 		return p.Y >= p.GroundLevel-float64(SpriteHeight)*p.Scale
@@ -772,11 +804,9 @@ func (p *Player) IsOnGroundCheck() bool {
 	hitboxOffsetX := float64(HitboxOffsetX) * p.Scale
 	hitboxOffsetY := float64(HitboxOffsetY) * p.Scale
 
-	// Check a few pixels below the player
 	return p.TileMap.CheckCollision(p.X+hitboxOffsetX, p.Y+hitboxOffsetY+3, hitboxWidth, hitboxHeight)
 }
 
-// GetHitboxBounds returns the actual hitbox bounds (used for collision)
 func (p *Player) GetHitboxBounds() (x, y, width, height float64) {
 	hitboxWidth := float64(HitboxWidth) * p.Scale
 	hitboxHeight := float64(HitboxHeight) * p.Scale
@@ -786,19 +816,16 @@ func (p *Player) GetHitboxBounds() (x, y, width, height float64) {
 	return p.X + offsetX, p.Y + offsetY, hitboxWidth, hitboxHeight
 }
 
-// CanMoveHorizontal checks if horizontal movement is possible
 func (p *Player) CanMoveHorizontal(deltaX float64) bool {
 	newX := p.X + deltaX
 	return !p.CheckCollisionAtPosition(newX, p.Y)
 }
 
-// CanMoveVertical checks if vertical movement is possible
 func (p *Player) CanMoveVertical(deltaY float64) bool {
 	newY := p.Y + deltaY
 	return !p.CheckCollisionAtPosition(p.X, newY)
 }
 
-// ResetToSafePosition moves the player to a safe position if they're stuck
 func (p *Player) ResetToSafePosition() {
 	if p.CollisionSystem == nil {
 		return
@@ -806,10 +833,9 @@ func (p *Player) ResetToSafePosition() {
 
 	currentBox := p.GetCollisionBox()
 	if p.CollisionSystem.CheckCollisionAtPoint(currentBox) {
-		// Try to find a safe position above the current position
 		safeBox := CollisionBox{
 			X:      currentBox.X,
-			Y:      currentBox.Y - 100, // Move up
+			Y:      currentBox.Y - 100,
 			Width:  currentBox.Width,
 			Height: currentBox.Height,
 		}
@@ -821,7 +847,6 @@ func (p *Player) ResetToSafePosition() {
 			p.VelocityY = 0
 			p.OnGround = false
 		} else {
-			// Last resort: move to spawn position
 			p.X = 100.0
 			p.Y = p.GroundLevel - float64(SpriteHeight)*p.Scale
 			p.VelocityX = 0
@@ -831,7 +856,6 @@ func (p *Player) ResetToSafePosition() {
 	}
 }
 
-// IsStuck checks if the player is currently stuck in collision
 func (p *Player) IsStuck() bool {
 	if p.CollisionSystem == nil {
 		return false
@@ -839,7 +863,6 @@ func (p *Player) IsStuck() bool {
 	return p.CollisionSystem.CheckCollisionAtPoint(p.GetCollisionBox())
 }
 
-// checkWallCollision checks if player is touching walls for wall jumping
 func (p *Player) checkWallCollision() {
 	if p.CollisionSystem == nil {
 		p.OnWallLeft = false
@@ -849,7 +872,6 @@ func (p *Player) checkWallCollision() {
 
 	currentBox := p.GetCollisionBox()
 
-	// Check left wall
 	leftBox := CollisionBox{
 		X:      currentBox.X - 5,
 		Y:      currentBox.Y,
@@ -858,7 +880,6 @@ func (p *Player) checkWallCollision() {
 	}
 	p.OnWallLeft = p.CollisionSystem.CheckCollisionAtPoint(leftBox) && !p.OnGround
 
-	// Check right wall
 	rightBox := CollisionBox{
 		X:      currentBox.X + 5,
 		Y:      currentBox.Y,
@@ -868,36 +889,30 @@ func (p *Player) checkWallCollision() {
 	p.OnWallRight = p.CollisionSystem.CheckCollisionAtPoint(rightBox) && !p.OnGround
 }
 
-// TakeDamage handles player taking damage
 func (p *Player) TakeDamage(damage int) {
 	if p.InvulnTimer > 0 || p.IsDead {
-		return // Player is invulnerable or already dead
+		return
 	}
 
 	p.Health -= damage
 	if p.Health <= 0 {
 		p.Health = 0
 		p.IsDead = true
-		// Stop player movement on death
 		p.VelocityX = 0
 		p.VelocityY = 0
-		// Don't automatically reset position - let game handle respawn menu
 	} else {
 		p.InvulnTimer = INVULNERABILITY_TIME
 	}
 }
 
-// IsInvulnerable returns true if player is currently invulnerable
 func (p *Player) IsInvulnerable() bool {
 	return p.InvulnTimer > 0
 }
 
-// GetHealthPercentage returns health as a percentage
 func (p *Player) GetHealthPercentage() float64 {
 	return float64(p.Health) / float64(p.MaxHealth)
 }
 
-// CheckProjectileCollision checks if player collides with a projectile
 func (p *Player) CheckProjectileCollision(projectile *Projectile) bool {
 	if p.IsInvulnerable() || !projectile.IsActive {
 		return false
@@ -907,14 +922,12 @@ func (p *Player) CheckProjectileCollision(projectile *Projectile) bool {
 	return projectile.CheckCollision(px, py, pw, ph)
 }
 
-// performAttack initiates a player attack
 func (p *Player) performAttack() {
 	p.IsAttacking = true
 	p.AttackTimer = ATTACK_DURATION
 	p.AttackCooldown = ATTACK_COOLDOWN_TIME
 
-	// Handle combo system
-	if p.CanCombo && p.ComboTimer > 0 {
+	if p.ComboTimer > 0 && p.CanCombo {
 		p.ComboCount++
 		if p.ComboCount > MAX_COMBO_COUNT {
 			p.ComboCount = MAX_COMBO_COUNT
@@ -926,46 +939,42 @@ func (p *Player) performAttack() {
 	p.ComboTimer = COMBO_WINDOW
 	p.CanCombo = true
 
-	// Add slight knockback/movement on attack for better feel
 	if p.OnGround {
-		// Slight forward movement on ground attacks
 		if p.FacingRight {
-			p.VelocityX += 50.0
+			p.VelocityX += 100.0
 		} else {
-			p.VelocityX -= 50.0
+			p.VelocityX -= 100.0
 		}
 	} else {
-		// Air attacks have different movement
 		if p.ComboCount >= 3 {
-			// Third air attack creates downward momentum
 			p.VelocityY += 200.0
 		}
 	}
 }
 
-// GetAttackBox returns the attack hitbox based on player position and facing direction
 func (p *Player) GetAttackBox() (float64, float64, float64, float64) {
 	if !p.IsAttacking {
 		return 0, 0, 0, 0
 	}
 
 	attackWidth := p.AttackRange
-	attackHeight := float64(HitboxHeight) * p.Scale
+	attackHeight := float64(HitboxHeight) * p.Scale * 0.8
 
 	var attackX, attackY float64
 
+	playerHitboxX, playerHitboxY, _, _ := p.GetBounds()
+
 	if p.FacingRight {
-		attackX = p.X + float64(SpriteWidth)*p.Scale
+		attackX = playerHitboxX + float64(HitboxWidth)*p.Scale
 	} else {
-		attackX = p.X - attackWidth
+		attackX = playerHitboxX - attackWidth
 	}
 
-	attackY = p.Y + float64(HitboxOffsetY)*p.Scale
+	attackY = playerHitboxY + (float64(HitboxHeight)*p.Scale-attackHeight)/2
 
 	return attackX, attackY, attackWidth, attackHeight
 }
 
-// CheckAttackHit checks if the player's attack hits an enemy
 func (p *Player) CheckAttackHit(enemyX, enemyY, enemyWidth, enemyHeight float64) bool {
 	if !p.IsAttacking {
 		return false
@@ -973,18 +982,15 @@ func (p *Player) CheckAttackHit(enemyX, enemyY, enemyWidth, enemyHeight float64)
 
 	attackX, attackY, attackWidth, attackHeight := p.GetAttackBox()
 
-	// Simple AABB collision detection
 	return attackX < enemyX+enemyWidth &&
 		attackX+attackWidth > enemyX &&
 		attackY < enemyY+enemyHeight &&
 		attackY+attackHeight > enemyY
 }
 
-// GetAttackDamage returns the damage based on combo count
 func (p *Player) GetAttackDamage() int {
 	baseDamage := p.AttackDamage
 
-	// Increase damage based on combo
 	switch p.ComboCount {
 	case 1:
 		return baseDamage
@@ -997,14 +1003,17 @@ func (p *Player) GetAttackDamage() int {
 	}
 }
 
-// IsPerformingAttack returns true if player is currently attacking
 func (p *Player) IsPerformingAttack() bool {
 	return p.IsAttacking
 }
 
-// GetComboCount returns current combo count
 func (p *Player) GetComboCount() int {
 	return p.ComboCount
+}
+
+func (p *Player) GetAttackDebugInfo() (bool, bool, float64, float64, float64, float64) {
+	attackX, attackY, attackWidth, attackHeight := p.GetAttackBox()
+	return p.IsAttacking, p.AttackCooldown <= 0, attackX, attackY, attackWidth, attackHeight
 }
 
 func absFloat64(x float64) float64 {
@@ -1014,19 +1023,30 @@ func absFloat64(x float64) float64 {
 	return x
 }
 
-// UpdateCollisionSystem updates the player's collision system with a new tilemap
 func (p *Player) UpdateCollisionSystem(tileMap *assets.TileMap) {
 	p.CollisionSystem = NewCollisionSystem(tileMap)
 }
 
-// IsDead returns true if player is dead
 func (p *Player) IsPlayerDead() bool {
 	return p.IsDead
 }
 
-// Revive restores the player to life with full health
 func (p *Player) Revive() {
 	p.IsDead = false
 	p.Health = p.MaxHealth
 	p.InvulnTimer = INVULNERABILITY_TIME
+}
+
+func (p *Player) ApplySlowdown(multiplier, duration float64) {
+	p.SpeedMultiplier = multiplier
+	p.SlowdownTimer = duration
+}
+
+func (p *Player) updateSlowdown(deltaTime float64) {
+	if p.SlowdownTimer > 0 {
+		p.SlowdownTimer -= deltaTime
+		if p.SlowdownTimer <= 0 {
+			p.SpeedMultiplier = 1.0 // Reset to normal speed
+		}
+	}
 }
