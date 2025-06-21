@@ -221,8 +221,6 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		}
 
 		g.drawHealthBar(screen)
-		g.drawCombatInfo(screen)
-		g.drawControlsInfo(screen)
 
 		fps := ebiten.ActualFPS()
 		tps := ebiten.ActualTPS()
@@ -336,54 +334,6 @@ func (g *Game) drawHealthBar(screen *ebiten.Image) {
 
 	healthText := fmt.Sprintf("Health: %d/%d", g.player.Health, g.player.MaxHealth)
 	esset.DrawText(screen, healthText, float64(healthBarX), float64(healthBarY+healthBarHeight+5), assets.FontFaceS, color.RGBA{255, 255, 255, 255})
-}
-
-func (g *Game) drawControlsInfo(screen *ebiten.Image) {
-	controlsY := 100
-	lineHeight := 20
-
-	controls := []string{
-		"PARKOUR CONTROLS:",
-		"A/D - Move Left/Right",
-		"SPACE - Jump / Wall Jump / Double Jump",
-		"X/C - Dash",
-		"SHIFT/Z - Roll",
-		"",
-		"COMBAT CONTROLS:",
-		"J/ENTER/LEFT CLICK - Attack",
-		"Chain attacks for combos!",
-		"",
-		"TIPS:",
-		"- Wall jump by pressing jump while touching a wall",
-		"- Dash to cross large gaps",
-		"- Roll to go under low obstacles",
-		"- Attack enemies to defeat them",
-		"- Avoid enemy projectiles and contact damage!",
-	}
-
-	for i, text := range controls {
-		y := controlsY + i*lineHeight
-		textColor := color.RGBA{255, 255, 255, 200}
-		if text == "PARKOUR CONTROLS:" || text == "TIPS:" {
-			textColor = color.RGBA{255, 255, 100, 255}
-		}
-		esset.DrawText(screen, text, 20.0, float64(y), assets.FontFaceS, textColor)
-	}
-}
-
-func (g *Game) drawCombatInfo(screen *ebiten.Image) {
-	y := 70.0
-
-	if g.player.GetComboCount() > 1 {
-		comboText := fmt.Sprintf("COMBO x%d", g.player.GetComboCount())
-		esset.DrawText(screen, comboText, 10, y, assets.FontFaceM, color.RGBA{255, 255, 0, 255})
-		y += 25.0
-	}
-
-	if g.player.IsPerformingAttack() {
-		attackText := "ATTACKING!"
-		esset.DrawText(screen, attackText, 10, y, assets.FontFaceS, color.RGBA{255, 100, 100, 255})
-	}
 }
 
 // restartGame resets the game to initial state

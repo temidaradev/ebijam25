@@ -123,7 +123,7 @@ func NewPlayer(x, y, worldWidth, worldHeight, groundLevel float64, tileMap *asse
 		cameraWorldH = worldHeight
 	}
 	// Set vertical offset to move camera view a bit higher
-	verticalOffset := -80.0
+	verticalOffset := -90.0
 	player := &Player{
 		X:                x,
 		Y:                y,
