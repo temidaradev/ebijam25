@@ -196,7 +196,7 @@ func (m *Menu) Draw(screen *ebiten.Image) {
 }
 
 func (m *Menu) drawMainMenu(screen *ebiten.Image, screenWidth, screenHeight int) {
-	titleText := "SCHIZOPHRENIC DESERT"
+	titleText := "FIGHT FOR UNION"
 	titleX := float64(screenWidth) * 0.025
 	titleY := float64(screenHeight) * 0.15
 

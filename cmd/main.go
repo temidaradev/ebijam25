@@ -12,7 +12,7 @@ func main() {
 	g := src.NewGame()
 
 	ebiten.SetWindowSize(1280, 720)
-	ebiten.SetWindowTitle("SCHIZOPHRENIC DESERT")
+	ebiten.SetWindowTitle("FIGHT FOR UNION")
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	ebiten.SetWindowDecorated(true)
 	ebiten.SetVsyncEnabled(true)
