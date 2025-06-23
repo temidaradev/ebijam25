@@ -12,7 +12,7 @@ func main() {
 	g := src.NewGame()
 
 	ebiten.SetWindowSize(1280, 720)
-	ebiten.SetWindowTitle("Ebijam 25 - Temidaradev")
+	ebiten.SetWindowTitle("SCHIZOPHRENIC DESERT")
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	ebiten.SetWindowDecorated(true)
 	ebiten.SetVsyncEnabled(true)

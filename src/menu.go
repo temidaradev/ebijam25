@@ -3,6 +3,7 @@ package src
 import (
 	"image/color"
 	"math"
+	"math/rand"
 	"os"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -105,7 +106,7 @@ func NewMenu() *Menu {
 	m.respawnItems = []MenuItem{
 		{Text: "RESTART GAME", Action: func() MenuState {
 			m.restartRequested = true
-			return MenuStateRespawn
+			return MenuStateMain
 		}},
 		{Text: "QUIT GAME", Action: func() MenuState {
 			os.Exit(1)
@@ -195,14 +196,35 @@ func (m *Menu) Draw(screen *ebiten.Image) {
 }
 
 func (m *Menu) drawMainMenu(screen *ebiten.Image, screenWidth, screenHeight int) {
-	titleText := "Between Layers"
+	titleText := "SCHIZOPHRENIC DESERT"
 	titleX := float64(screenWidth) * 0.025
-	titleY := float64(screenHeight) * 0.2
+	titleY := float64(screenHeight) * 0.15
 
-	titleAlpha := 0.8 + 0.2*math.Sin(m.animationTime*2)
-	titleColor := color.RGBA{255, 255, 255, uint8(titleAlpha * 255)}
+	glitchPhase := m.animationTime * 3.0
+	titleAlpha := 0.8 + 0.2*math.Sin(glitchPhase)
 
-	esset.DrawText(screen, titleText, titleX, titleY, assets.FontFaceM, titleColor)
+	if rand.Float64() < 0.1 {
+		titleColor := color.RGBA{
+			uint8(200 + rand.Intn(56)),
+			uint8(50 + rand.Intn(100)),
+			uint8(200 + rand.Intn(56)),
+			uint8(titleAlpha * 255),
+		}
+		esset.DrawText(screen, titleText, titleX, titleY, assets.FontFaceM, titleColor)
+	} else {
+		titleColor := color.RGBA{255, 100, 255, uint8(titleAlpha * 255)}
+		esset.DrawText(screen, titleText, titleX, titleY, assets.FontFaceM, titleColor)
+	}
+
+	subtitleText := "Find the CURSED ARTIFACTS to break your mind"
+	subtitleX := float64(screenWidth) * 0.025
+	subtitleY := float64(screenHeight) * 0.25
+	esset.DrawText(screen, subtitleText, subtitleX, subtitleY, assets.FontFaceS, color.RGBA{200, 150, 200, 255})
+
+	disclaimerText := "WARNING: Contains disturbing visual effects and reality distortion"
+	disclaimerX := float64(screenWidth) * 0.025
+	disclaimerY := float64(screenHeight) * 0.32
+	esset.DrawText(screen, disclaimerText, disclaimerX, disclaimerY, assets.FontFaceS, color.RGBA{255, 200, 100, 255})
 
 	m.drawMenuItems(screen, m.menuItems, screenWidth, screenHeight)
 }
@@ -228,22 +250,18 @@ func (m *Menu) drawPauseMenu(screen *ebiten.Image, screenWidth, screenHeight int
 }
 
 func (m *Menu) drawRespawnMenu(screen *ebiten.Image, screenWidth, screenHeight int) {
-	// Draw a darker background overlay
 	vector.DrawFilledRect(screen, 0, 0, float32(screenWidth), float32(screenHeight),
 		color.RGBA{0, 0, 0, 150}, false)
 
-	// Title with red coloring to indicate death
 	titleText := "YOU DIED"
-	titleX := float64(screenWidth)*0.5 - 100 // Center the title
+	titleX := float64(screenWidth)*0.5 - 100
 	titleY := float64(screenHeight) * 0.25
 
-	// Pulsing red effect for dramatic impact
 	pulse := 0.7 + 0.3*math.Sin(m.animationTime*3)
 	titleColor := color.RGBA{255, uint8(100 * pulse), uint8(100 * pulse), 255}
 
 	esset.DrawText(screen, titleText, titleX, titleY, assets.FontFaceM, titleColor)
 
-	// Subtitle
 	subtitleText := "Choose your next action:"
 	subtitleX := float64(screenWidth) * 0.025
 	subtitleY := titleY + 60

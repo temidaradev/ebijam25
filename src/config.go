@@ -14,10 +14,10 @@ const (
 	HitboxHeight                = 30
 	HitboxOffsetX               = 16
 	HitboxOffsetY               = 10
-	DefaultPlayerSpeed          = 300.0
-	DefaultMaxSpeed             = 350.0
-	DefaultJumpPower            = 550.0
-	DefaultDeceleration         = 1500.0
+	DefaultPlayerSpeed          = 200.0
+	DefaultMaxSpeed             = 250.0
+	DefaultJumpPower            = 650.0
+	DefaultDeceleration         = 3500.0
 	DefaultJumpBufferTime       = 0.1
 	DefaultCoyoteTime           = 0.15
 	RollDuration                = 0.4

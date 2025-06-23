@@ -46,13 +46,11 @@ type Player struct {
 	IsRolling bool
 	RollTimer float64
 
-	// Parkour mechanics
 	CanWallJump   bool
 	WallJumpTimer float64
 	OnWallLeft    bool
 	OnWallRight   bool
 
-	// Dashing
 	CanDash      bool
 	IsDashing    bool
 	DashTimer    float64
@@ -60,17 +58,14 @@ type Player struct {
 	DashSpeed    float64
 	DashDuration float64
 
-	// Double jump
 	HasDoubleJump  bool
 	DoubleJumpUsed bool
 
-	// Health system
 	Health      int
 	MaxHealth   int
 	InvulnTimer float64
 	IsDead      bool
 
-	// Combat system
 	IsAttacking    bool
 	AttackTimer    float64
 	AttackDamage   int
@@ -80,18 +75,27 @@ type Player struct {
 	ComboTimer     float64
 	CanCombo       bool
 
-	// Wall climbing system
 	IsWallClimbing bool
 	WallGrabTimer  float64
 	CanWallGrab    bool
 
-	// Input state (for physics calculations)
 	IsMovingLeft  bool
 	IsMovingRight bool
 
-	// Slipping state
 	IsSlipping bool
 	SlipTimer  float64
+
+	PhysicsCorruption  float64
+	GravityMultiplier  float64
+	FrictionMultiplier float64
+	InertiaMultiplier  float64
+	PhysicsGlitchTimer float64
+
+	EnvironmentalDamageTimer float64
+	CrashDamageTimer         float64
+	StagnationTimer          float64
+	FallDamageTimer          float64
+	MadnessDamageTimer       float64
 }
 
 const (
@@ -130,7 +134,6 @@ func NewPlayer(x, y, worldWidth, worldHeight, groundLevel float64, tileMap *asse
 		cameraWorldW = worldWidth
 		cameraWorldH = worldHeight
 	}
-	// Set vertical offset to move camera view a bit higher
 	verticalOffset := -90.0
 	player := &Player{
 		X:                x,
@@ -158,18 +161,15 @@ func NewPlayer(x, y, worldWidth, worldHeight, groundLevel float64, tileMap *asse
 		TileMap:          tileMap,
 		CollisionSystem:  NewCollisionSystem(tileMap),
 
-		// Slowdown system
 		SpeedMultiplier:  1.0,
 		SlowdownTimer:    0,
 		SlowdownDuration: 0,
 
-		// Parkour mechanics
 		CanWallJump:   true,
 		WallJumpTimer: 0,
 		OnWallLeft:    false,
 		OnWallRight:   false,
 
-		// Dashing
 		CanDash:      true,
 		IsDashing:    false,
 		DashTimer:    0,
@@ -177,17 +177,14 @@ func NewPlayer(x, y, worldWidth, worldHeight, groundLevel float64, tileMap *asse
 		DashSpeed:    DASH_SPEED,
 		DashDuration: DASH_DURATION,
 
-		// Double jump
 		HasDoubleJump:  true,
 		DoubleJumpUsed: false,
 
-		// Health
-		Health:      5, // More health for parkour challenges
-		MaxHealth:   5,
+		Health:      100,
+		MaxHealth:   100,
 		InvulnTimer: 0,
 		IsDead:      false,
 
-		// Combat
 		IsAttacking:    false,
 		AttackTimer:    0,
 		AttackDamage:   ATTACK_DAMAGE,
@@ -197,14 +194,27 @@ func NewPlayer(x, y, worldWidth, worldHeight, groundLevel float64, tileMap *asse
 		ComboTimer:     0,
 		CanCombo:       false,
 
-		// Wall climbing
 		IsWallClimbing: false,
 		WallGrabTimer:  0,
 		CanWallGrab:    true,
 
-		// Input state
 		IsMovingLeft:  false,
 		IsMovingRight: false,
+
+		IsSlipping: false,
+		SlipTimer:  0,
+
+		PhysicsCorruption:  0.0,
+		GravityMultiplier:  1.0,
+		FrictionMultiplier: 1.0,
+		InertiaMultiplier:  1.0,
+		PhysicsGlitchTimer: 0.0,
+
+		EnvironmentalDamageTimer: 0.0,
+		CrashDamageTimer:         0.0,
+		StagnationTimer:          0.0,
+		FallDamageTimer:          0.0,
+		MadnessDamageTimer:       0.0,
 	}
 
 	player.Camera.VerticalOffset = verticalOffset
@@ -221,6 +231,8 @@ func (p *Player) Update(deltaTime float64) {
 	p.handleInput(deltaTime)
 	p.updatePhysics(deltaTime)
 	p.updateAnimation()
+
+	p.updateEnvironmentalDamage(deltaTime)
 
 	if p.AnimationManager != nil {
 		p.AnimationManager.Update(deltaTime)
@@ -281,7 +293,7 @@ func (p *Player) updateTimers(deltaTime float64) {
 		p.WallGrabTimer -= deltaTime
 		if p.WallGrabTimer <= 0 {
 			p.IsWallClimbing = false
-			p.CanWallGrab = false // Player gets tired and falls
+			p.CanWallGrab = false
 		}
 	}
 
@@ -392,9 +404,12 @@ func (p *Player) handleInput(deltaTime float64) {
 			if intensity > 1.0 {
 				intensity = 1.0
 			}
-			p.VelocityX = -p.MaxSpeed * intensity * p.SpeedMultiplier
+			// Apply physics corruption to movement
+			corruptedSpeed := p.MaxSpeed * intensity * p.SpeedMultiplier * p.InertiaMultiplier
+			p.VelocityX = -corruptedSpeed
 		} else {
-			p.VelocityX = -p.MaxSpeed * p.SpeedMultiplier
+			corruptedSpeed := p.MaxSpeed * p.SpeedMultiplier * p.InertiaMultiplier
+			p.VelocityX = -corruptedSpeed
 		}
 		p.FacingRight = false
 	} else if (rightPressed || controllerRight) && !(leftPressed || controllerLeft) {
@@ -403,15 +418,18 @@ func (p *Player) handleInput(deltaTime float64) {
 			if intensity > 1.0 {
 				intensity = 1.0
 			}
-			p.VelocityX = p.MaxSpeed * intensity * p.SpeedMultiplier
+			// Apply physics corruption to movement
+			corruptedSpeed := p.MaxSpeed * intensity * p.SpeedMultiplier * p.InertiaMultiplier
+			p.VelocityX = corruptedSpeed
 		} else {
-			p.VelocityX = p.MaxSpeed * p.SpeedMultiplier
+			corruptedSpeed := p.MaxSpeed * p.SpeedMultiplier * p.InertiaMultiplier
+			p.VelocityX = corruptedSpeed
 		}
 		p.FacingRight = true
 	} else {
 		var decelAmount float64
 		if p.OnGround {
-			baseDecel := p.Deceleration * 2.8
+			baseDecel := p.Deceleration * 2.8 * p.FrictionMultiplier // Apply friction corruption
 			speedFactor := math.Min(2.0, math.Abs(p.VelocityX)/150.0)
 			decelAmount = baseDecel * speedFactor * deltaTime
 
@@ -514,12 +532,17 @@ func (p *Player) updatePhysics(deltaTime float64) {
 				p.WallGrabTimer = 0
 			}
 		} else if (p.OnWallLeft || p.OnWallRight) && p.VelocityY > 0 {
-			p.VelocityY += Gravity * deltaTime * 0.3
-			if p.VelocityY > WALL_SLIDE_SPEED {
-				p.VelocityY = WALL_SLIDE_SPEED
+			// Apply corrupted gravity to wall sliding
+			corruptedGravity := Gravity * p.GravityMultiplier
+			p.VelocityY += corruptedGravity * deltaTime * 0.3
+			wallSlideSpeed := WALL_SLIDE_SPEED * p.FrictionMultiplier
+			if p.VelocityY > wallSlideSpeed {
+				p.VelocityY = wallSlideSpeed
 			}
 		} else {
-			p.VelocityY += Gravity * deltaTime
+			// Apply corrupted gravity to normal falling
+			corruptedGravity := Gravity * p.GravityMultiplier
+			p.VelocityY += corruptedGravity * deltaTime
 		}
 	}
 
@@ -722,7 +745,6 @@ func (p *Player) GetBounds() (x, y, width, height float64) {
 	return p.X + offsetX, p.Y + offsetY, hitboxWidth, hitboxHeight
 }
 
-// Implement GameObject interface
 func (p *Player) GetCollisionBox() CollisionBox {
 	hitboxWidth := float64(HitboxWidth) * p.Scale
 	hitboxHeight := float64(HitboxHeight) * p.Scale
@@ -1046,7 +1068,160 @@ func (p *Player) updateSlowdown(deltaTime float64) {
 	if p.SlowdownTimer > 0 {
 		p.SlowdownTimer -= deltaTime
 		if p.SlowdownTimer <= 0 {
-			p.SpeedMultiplier = 1.0 // Reset to normal speed
+			p.SpeedMultiplier = 1.0
 		}
+	}
+}
+
+func (p *Player) UpdatePhysicsCorruption(specialItems []*SpecialItem, deltaTime float64) {
+	maxCorruption := 0.0
+	playerX, playerY, _, _ := p.GetBounds()
+
+	for _, item := range specialItems {
+		if !item.IsActive || item.Collected {
+			continue
+		}
+
+		if item.ItemType != ItemSchizophrenicFragment &&
+			item.ItemType != ItemRealityGlitch &&
+			item.ItemType != ItemMadnessCore {
+			continue
+		}
+
+		dx := playerX - (item.X + item.Width/2)
+		dy := playerY - (item.Y + item.Height/2)
+		distance := math.Sqrt(dx*dx + dy*dy)
+
+		var corruptionRadius float64
+		var corruptionStrength float64
+
+		switch item.ItemType {
+		case ItemSchizophrenicFragment:
+			corruptionRadius = 150.0
+			corruptionStrength = 0.3
+		case ItemRealityGlitch:
+			corruptionRadius = 200.0
+			corruptionStrength = 0.5
+		case ItemMadnessCore:
+			corruptionRadius = 300.0
+			corruptionStrength = 0.8
+		}
+
+		if distance < corruptionRadius {
+			corruption := corruptionStrength * (1.0 - distance/corruptionRadius)
+			if corruption > maxCorruption {
+				maxCorruption = corruption
+			}
+		}
+	}
+
+	targetCorruption := maxCorruption
+	if p.PhysicsCorruption < targetCorruption {
+		p.PhysicsCorruption += deltaTime * 2.0
+	} else {
+		p.PhysicsCorruption -= deltaTime * 1.0
+	}
+
+	p.PhysicsCorruption = math.Max(0, math.Min(1.0, p.PhysicsCorruption))
+
+	p.updatePhysicsMultipliers(deltaTime)
+}
+
+func (p *Player) updatePhysicsMultipliers(deltaTime float64) {
+	corruption := p.PhysicsCorruption
+	p.PhysicsGlitchTimer += deltaTime
+
+	if corruption <= 0.1 {
+		p.GravityMultiplier = 1.0
+		p.FrictionMultiplier = 1.0
+		p.InertiaMultiplier = 1.0
+		return
+	}
+
+	glitchCycle := math.Sin(p.PhysicsGlitchTimer*3.0) * corruption
+	randomGlitch := math.Sin(p.PhysicsGlitchTimer*7.0) * corruption * 0.5
+
+	baseGravity := 1.0 + glitchCycle*0.8
+	if corruption > 0.6 && math.Sin(p.PhysicsGlitchTimer*2.0) > 0.7 {
+		baseGravity *= -0.3
+	}
+	p.GravityMultiplier = baseGravity
+
+	p.FrictionMultiplier = 1.0 + randomGlitch*2.0
+	if corruption > 0.4 && math.Sin(p.PhysicsGlitchTimer*5.0) > 0.8 {
+		p.FrictionMultiplier = 0.1
+	}
+
+	p.InertiaMultiplier = 1.0 + glitchCycle*1.5
+	if corruption > 0.7 && math.Sin(p.PhysicsGlitchTimer*4.0) > 0.6 {
+		p.InertiaMultiplier = 3.0
+	}
+}
+
+func (p *Player) updateEnvironmentalDamage(deltaTime float64) {
+	if p.InvulnTimer > 0 || p.IsDead {
+		return
+	}
+
+	if p.PhysicsCorruption > 0.5 {
+		p.EnvironmentalDamageTimer += deltaTime
+		if p.EnvironmentalDamageTimer >= 3.0 {
+			damageAmount := int(5 + p.PhysicsCorruption*10)
+			p.TakeDamage(damageAmount)
+			p.EnvironmentalDamageTimer = 0
+		}
+	}
+
+	speed := math.Sqrt(p.VelocityX*p.VelocityX + p.VelocityY*p.VelocityY)
+	if speed > 400 {
+		p.CrashDamageTimer += deltaTime
+		if p.CrashDamageTimer >= 1.0 {
+			p.TakeDamage(3)
+			p.CrashDamageTimer = 0
+		}
+	} else {
+		p.CrashDamageTimer = 0
+	}
+
+	if math.Abs(p.VelocityX) < 10 && math.Abs(p.VelocityY) < 10 {
+		p.StagnationTimer += deltaTime
+		if p.StagnationTimer >= 8.0 {
+			p.TakeDamage(2)
+			p.StagnationTimer = 0
+		}
+	} else {
+		p.StagnationTimer = 0
+	}
+
+	if p.VelocityY > 300 {
+		p.FallDamageTimer += deltaTime
+		if p.FallDamageTimer >= 2.0 {
+			p.TakeDamage(4)
+			p.FallDamageTimer = 0
+		}
+	} else {
+		p.FallDamageTimer = 0
+	}
+}
+
+func (p *Player) ApplyMadnessDamage(madnessLevel float64, deltaTime float64) {
+	if p.InvulnTimer > 0 || p.IsDead {
+		return
+	}
+
+	if madnessLevel > 0.6 {
+		p.MadnessDamageTimer += deltaTime
+		damageInterval := 4.0 - madnessLevel*2.0
+		if damageInterval < 1.0 {
+			damageInterval = 1.0
+		}
+
+		if p.MadnessDamageTimer >= damageInterval {
+			damageAmount := int(1 + madnessLevel*8)
+			p.TakeDamage(damageAmount)
+			p.MadnessDamageTimer = 0
+		}
+	} else {
+		p.MadnessDamageTimer = 0
 	}
 }

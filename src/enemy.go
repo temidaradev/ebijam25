@@ -3,6 +3,7 @@ package src
 import (
 	"image/color"
 	"math"
+	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
@@ -14,34 +15,30 @@ const (
 	EnemyTypeShooter EnemyType = iota
 	EnemyTypeJumper
 	EnemyTypeSpike
+	EnemyTypeGlitched
 )
 
 type Enemy struct {
-	X, Y          float64
-	VelocityX     float64
-	VelocityY     float64
-	Width, Height float64
-	Health        int
-	IsActive      bool
-	EnemyType     EnemyType
-
-	PatrolStartX float64
-	PatrolEndX   float64
-	PatrolSpeed  float64
-	MovingRight  bool
-
+	X, Y           float64
+	VelocityX      float64
+	VelocityY      float64
+	Width, Height  float64
+	Health         int
+	IsActive       bool
+	EnemyType      EnemyType
+	PatrolStartX   float64
+	PatrolEndX     float64
+	PatrolSpeed    float64
+	MovingRight    bool
 	ShootCooldown  float64
 	ShootTimer     float64
 	DetectionRange float64
-
-	JumpTimer    float64
-	JumpCooldown float64
-	JumpPower    float64
-	OnGround     bool
-
-	Projectiles []*Projectile
-
-	Color color.RGBA
+	JumpTimer      float64
+	JumpCooldown   float64
+	JumpPower      float64
+	OnGround       bool
+	Projectiles    []*Projectile
+	Color          color.RGBA
 }
 
 type Projectile struct {
@@ -109,6 +106,30 @@ func NewSpikeEnemy(x, y float64) *Enemy {
 	}
 }
 
+func NewGlitchedEnemy(x, y float64) *Enemy {
+	return &Enemy{
+		X:              x,
+		Y:              y,
+		Width:          20 + rand.Float64()*20,
+		Height:         20 + rand.Float64()*20,
+		Health:         1,
+		IsActive:       true,
+		EnemyType:      EnemyTypeGlitched,
+		PatrolStartX:   x - 100,
+		PatrolEndX:     x + 100,
+		PatrolSpeed:    50 + rand.Float64()*100,
+		MovingRight:    rand.Float64() > 0.5,
+		DetectionRange: 50 + rand.Float64()*150,
+		Color: color.RGBA{
+			uint8(rand.Intn(256)),
+			uint8(rand.Intn(256)),
+			uint8(rand.Intn(256)),
+			uint8(100 + rand.Intn(156)),
+		},
+		Projectiles: make([]*Projectile, 0),
+	}
+}
+
 func NewProjectile(x, y, velocityX, velocityY float64) *Projectile {
 	return &Projectile{
 		X:         x,
@@ -134,12 +155,13 @@ func (e *Enemy) Update(deltaTime float64, playerX, playerY float64, collisionSys
 	case EnemyTypeJumper:
 		e.updateJumper(deltaTime, playerX, playerY, collisionSystem)
 	case EnemyTypeSpike:
+	case EnemyTypeGlitched:
+		e.updateGlitched(deltaTime, playerX, playerY)
 	}
 
 	for i := len(e.Projectiles) - 1; i >= 0; i-- {
 		projectile := e.Projectiles[i]
 		projectile.Update(deltaTime)
-
 		if !projectile.IsActive {
 			e.Projectiles = append(e.Projectiles[:i], e.Projectiles[i+1:]...)
 		}
@@ -162,7 +184,6 @@ func (e *Enemy) updateShooter(deltaTime float64, playerX, playerY float64) {
 			e.MovingRight = true
 		}
 	}
-
 	distanceToPlayer := math.Sqrt(math.Pow(playerX-e.X, 2) + math.Pow(playerY-e.Y, 2))
 	if distanceToPlayer < e.DetectionRange && e.ShootTimer <= 0 {
 		e.shootAtPlayer(playerX, playerY)
@@ -197,12 +218,51 @@ func (e *Enemy) updateJumper(deltaTime float64, playerX, playerY float64, collis
 		e.X += e.VelocityX * deltaTime
 		e.Y += e.VelocityY * deltaTime
 	}
-
 	distanceToPlayer := math.Sqrt(math.Pow(playerX-e.X, 2) + math.Pow(playerY-e.Y, 2))
 	if distanceToPlayer < 150 && e.OnGround && e.JumpTimer <= 0 {
 		e.VelocityY = e.JumpPower
 		e.OnGround = false
 		e.JumpTimer = e.JumpCooldown
+	}
+}
+
+func (e *Enemy) updateGlitched(deltaTime float64, playerX, playerY float64) {
+	if rand.Float64() < 0.3 {
+		e.MovingRight = !e.MovingRight
+	}
+	if rand.Float64() < 0.1 {
+		e.PatrolSpeed = 20 + rand.Float64()*150
+	}
+	if rand.Float64() < 0.02 {
+		e.X = playerX + (rand.Float64()-0.5)*400
+		e.Y = 200 + rand.Float64()*200
+	}
+	if e.MovingRight {
+		e.X += e.PatrolSpeed * deltaTime * (0.5 + rand.Float64())
+		if e.X >= e.PatrolEndX || rand.Float64() < 0.05 {
+			e.MovingRight = false
+		}
+	} else {
+		e.X -= e.PatrolSpeed * deltaTime * (0.5 + rand.Float64())
+		if e.X <= e.PatrolStartX || rand.Float64() < 0.05 {
+			e.MovingRight = true
+		}
+	}
+	if rand.Float64() < 0.2 {
+		e.Color = color.RGBA{
+			uint8(rand.Intn(256)),
+			uint8(rand.Intn(256)),
+			uint8(rand.Intn(256)),
+			uint8(100 + rand.Intn(156)),
+		}
+	}
+	if rand.Float64() < 0.1 {
+		e.Width = 10 + rand.Float64()*40
+		e.Height = 10 + rand.Float64()*40
+	}
+	distanceToPlayer := math.Sqrt(math.Pow(playerX-e.X, 2) + math.Pow(playerY-e.Y, 2))
+	if distanceToPlayer < e.DetectionRange && rand.Float64() < 0.05 {
+		e.shootGlitchedProjectile(playerX, playerY)
 	}
 }
 
@@ -264,6 +324,34 @@ func (e *Enemy) shootAtPlayer(targetX, targetY float64) {
 	}
 }
 
+func (e *Enemy) shootGlitchedProjectile(playerX, playerY float64) {
+	projectileCount := 1 + rand.Intn(4)
+
+	for i := 0; i < projectileCount; i++ {
+		angle := math.Atan2(playerY-e.Y, playerX-e.X) + (rand.Float64()-0.5)*math.Pi
+		speed := 100 + rand.Float64()*200
+
+		projectile := &Projectile{
+			X:         e.X + e.Width/2,
+			Y:         e.Y + e.Height/2,
+			VelocityX: math.Cos(angle) * speed,
+			VelocityY: math.Sin(angle) * speed,
+			Width:     4 + rand.Float64()*8,
+			Height:    4 + rand.Float64()*8,
+			IsActive:  true,
+			Lifetime:  2.0 + rand.Float64()*3.0,
+			Color: color.RGBA{
+				uint8(rand.Intn(256)),
+				uint8(rand.Intn(256)),
+				uint8(rand.Intn(256)),
+				255,
+			},
+		}
+
+		e.Projectiles = append(e.Projectiles, projectile)
+	}
+}
+
 func (e *Enemy) Draw(screen *ebiten.Image, camera *Camera) {
 	if !e.IsActive {
 		return
@@ -280,7 +368,6 @@ func (e *Enemy) Draw(screen *ebiten.Image, camera *Camera) {
 		vector.DrawFilledRect(screen,
 			float32(screenX+e.Width), float32(screenY+e.Height/2-2),
 			8, 4, color.RGBA{100, 100, 100, 255}, false)
-
 	case EnemyTypeJumper:
 		for i := 0; i < 8; i++ {
 			for j := 0; j < 8; j++ {
@@ -293,7 +380,6 @@ func (e *Enemy) Draw(screen *ebiten.Image, camera *Camera) {
 				}
 			}
 		}
-
 	case EnemyTypeSpike:
 		vector.StrokeLine(screen,
 			float32(screenX+e.Width/2), float32(screenY),
