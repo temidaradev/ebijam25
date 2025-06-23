@@ -112,7 +112,7 @@ const (
 
 	ATTACK_DURATION      = 0.3
 	ATTACK_COOLDOWN_TIME = 0.4
-	ATTACK_RANGE         = 60.0
+	ATTACK_RANGE         = 70.0
 	ATTACK_DAMAGE        = 1
 	COMBO_WINDOW         = 1.2
 	MAX_COMBO_COUNT      = 3
@@ -980,16 +980,16 @@ func (p *Player) GetAttackBox() (float64, float64, float64, float64) {
 	}
 
 	attackWidth := p.AttackRange
-	attackHeight := float64(HitboxHeight) * p.Scale * 0.8
+	attackHeight := float64(HitboxHeight) * p.Scale
 
 	var attackX, attackY float64
 
 	playerHitboxX, playerHitboxY, _, _ := p.GetBounds()
 
 	if p.FacingRight {
-		attackX = playerHitboxX + float64(HitboxWidth)*p.Scale
+		attackX = playerHitboxX + float64(HitboxWidth)
 	} else {
-		attackX = playerHitboxX - attackWidth
+		attackX = playerHitboxX - attackWidth + float64(HitboxWidth)
 	}
 
 	attackY = playerHitboxY + (float64(HitboxHeight)*p.Scale-attackHeight)/2

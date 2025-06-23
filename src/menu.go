@@ -118,12 +118,6 @@ func (m *Menu) Update() error {
 
 	currentItems := m.getCurrentMenuItems()
 
-	if ebiten.IsFullscreen() {
-		m.settingsItems[2].Text = "FULLSCREEN: ON (F11)"
-	} else {
-		m.settingsItems[2].Text = "FULLSCREEN: OFF (F11)"
-	}
-
 	upPressed := inpututil.IsKeyJustPressed(ebiten.KeyArrowUp) || inpututil.IsKeyJustPressed(ebiten.KeyW)
 	downPressed := inpututil.IsKeyJustPressed(ebiten.KeyArrowDown) || inpututil.IsKeyJustPressed(ebiten.KeyS)
 	selectPressed := inpututil.IsKeyJustPressed(ebiten.KeyEnter) || inpututil.IsKeyJustPressed(ebiten.KeySpace)
