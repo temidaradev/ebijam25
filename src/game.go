@@ -605,7 +605,7 @@ func (g *Game) drawHealthBar(screen *ebiten.Image) {
 
 	unionText := fmt.Sprintf("Union Progress: %.0f%%", g.unionProgress*100)
 	if g.unionProgress >= 0.9 {
-		unionText = "⭐ READY FOR UNION! Find the Union Crystal! ⭐"
+		unionText = "READY FOR UNION! Find the Union Crystal!"
 	}
 	esset.DrawText(screen, unionText, float64(healthBarX), float64(unionBarY+unionBarHeight+10), assets.FontFaceS, color.RGBA{200, 150, 255, 255})
 }
