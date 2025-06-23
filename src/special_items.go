@@ -239,8 +239,8 @@ func NewUnionCrystal(x, y float64) *SpecialItem {
 		IntensityLevel:    -1.0,
 		MadnessRadius:     70,
 		LastParticleSpawn: 0,
-		Health:            10,
-		MaxHealth:         10,
+		Health:            70,
+		MaxHealth:         70,
 		HitFlashTimer:     0,
 		IsBeingHit:        false,
 
