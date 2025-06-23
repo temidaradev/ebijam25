@@ -79,8 +79,6 @@ func NewMenu() *Menu {
 	}
 
 	m.settingsItems = []MenuItem{
-		{Text: "MUSIC VOLUME: 100%", Action: func() MenuState { return MenuStateSettings }},
-		{Text: "SOUND EFFECTS: 100%", Action: func() MenuState { return MenuStateSettings }},
 		{Text: fullscreenText, Action: func() MenuState {
 			m.fullscreenToggleRequested = true
 			return MenuStateSettings
@@ -104,10 +102,6 @@ func NewMenu() *Menu {
 	}
 
 	m.respawnItems = []MenuItem{
-		{Text: "RESTART GAME", Action: func() MenuState {
-			m.restartRequested = true
-			return MenuStateMain
-		}},
 		{Text: "QUIT GAME", Action: func() MenuState {
 			os.Exit(1)
 			return MenuStateRespawn
