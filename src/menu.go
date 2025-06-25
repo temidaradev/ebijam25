@@ -17,7 +17,6 @@ type MenuState int
 
 const (
 	MenuStateMain MenuState = iota
-	MenuStateSettings
 	MenuStatePause
 	MenuStateRespawn
 )
@@ -33,7 +32,6 @@ type Menu struct {
 	previousState             MenuState
 	selectedIndex             int
 	menuItems                 []MenuItem
-	settingsItems             []MenuItem
 	pauseItems                []MenuItem
 	respawnItems              []MenuItem
 	animationTime             float64
@@ -63,37 +61,16 @@ func NewMenu() *Menu {
 			m.startGameRequested = true
 			return MenuStateMain
 		}},
-		{Text: "SETTINGS", Action: func() MenuState {
-			m.previousState = m.state
-			return MenuStateSettings
-		}},
 		{Text: "EXIT", Action: func() MenuState {
 			m.exitRequested = true
 			return MenuStateMain
 		}},
 	}
 
-	fullscreenText := "FULLSCREEN: OFF (F11)"
-	if ebiten.IsFullscreen() {
-		fullscreenText = "FULLSCREEN: ON (F11)"
-	}
-
-	m.settingsItems = []MenuItem{
-		{Text: fullscreenText, Action: func() MenuState {
-			m.fullscreenToggleRequested = true
-			return MenuStateSettings
-		}},
-		{Text: "BACK", Action: func() MenuState { return m.previousState }},
-	}
-
 	m.pauseItems = []MenuItem{
 		{Text: "CONTINUE", Action: func() MenuState {
 			m.continueRequested = true
 			return MenuStatePause
-		}},
-		{Text: "SETTINGS", Action: func() MenuState {
-			m.previousState = m.state
-			return MenuStateSettings
 		}},
 		{Text: "EXIT GAME", Action: func() MenuState {
 			os.Exit(0)
@@ -121,12 +98,10 @@ func (m *Menu) Update() error {
 	upPressed := inpututil.IsKeyJustPressed(ebiten.KeyArrowUp) || inpututil.IsKeyJustPressed(ebiten.KeyW)
 	downPressed := inpututil.IsKeyJustPressed(ebiten.KeyArrowDown) || inpututil.IsKeyJustPressed(ebiten.KeyS)
 	selectPressed := inpututil.IsKeyJustPressed(ebiten.KeyEnter) || inpututil.IsKeyJustPressed(ebiten.KeySpace)
-	backPressed := inpututil.IsKeyJustPressed(ebiten.KeyEscape)
 
 	upPressed = upPressed || m.controller.IsUpJustPressed()
 	downPressed = downPressed || m.controller.IsDownJustPressed()
 	selectPressed = selectPressed || m.controller.IsSelectJustPressed()
-	backPressed = backPressed || m.controller.IsBackJustPressed()
 
 	if upPressed {
 		m.selectedIndex--
@@ -152,16 +127,6 @@ func (m *Menu) Update() error {
 		}
 	}
 
-	if backPressed {
-		if m.state == MenuStateSettings {
-			m.state = m.previousState
-			m.selectedIndex = 0
-		} else if m.state != MenuStateMain {
-			m.state = MenuStateMain
-			m.selectedIndex = 0
-		}
-	}
-
 	return nil
 }
 
@@ -174,8 +139,6 @@ func (m *Menu) Draw(screen *ebiten.Image) {
 	switch m.state {
 	case MenuStateMain:
 		m.drawMainMenu(screen, screenWidth, screenHeight)
-	case MenuStateSettings:
-		m.drawSettingsMenu(screen, screenWidth, screenHeight)
 	case MenuStatePause:
 		m.drawPauseMenu(screen, screenWidth, screenHeight)
 	case MenuStateRespawn:
@@ -217,16 +180,6 @@ func (m *Menu) drawMainMenu(screen *ebiten.Image, screenWidth, screenHeight int)
 	m.drawMenuItems(screen, m.menuItems, screenWidth, screenHeight)
 }
 
-func (m *Menu) drawSettingsMenu(screen *ebiten.Image, screenWidth, screenHeight int) {
-	titleText := "SETTINGS"
-	titleX := float64(screenWidth) * 0.025
-	titleY := float64(screenHeight) * 0.2
-
-	esset.DrawText(screen, titleText, titleX, titleY, assets.FontFaceM, color.RGBA{255, 255, 255, 255})
-
-	m.drawMenuItems(screen, m.settingsItems, screenWidth, screenHeight)
-}
-
 func (m *Menu) drawPauseMenu(screen *ebiten.Image, screenWidth, screenHeight int) {
 	titleText := "PAUSED"
 	titleX := float64(screenWidth) * 0.025
@@ -261,7 +214,7 @@ func (m *Menu) drawRespawnMenu(screen *ebiten.Image, screenWidth, screenHeight i
 
 func (m *Menu) drawMenuItems(screen *ebiten.Image, items []MenuItem, screenWidth, screenHeight int) {
 	menuX := float64(screenWidth) * 0.025
-	startY := float64(screenHeight) * 0.36
+	startY := float64(screenHeight) * 0.4
 	itemSpacing := float64(screenHeight) * 0.07
 
 	if itemSpacing < 38 {
@@ -299,23 +252,10 @@ func (m *Menu) drawMenuItems(screen *ebiten.Image, items []MenuItem, screenWidth
 		esset.DrawText(screen, item.Text, x, y, assets.FontFaceS, itemColor)
 	}
 
-	var hintText string
-	if m.state == MenuStateSettings {
-		hintText = "USE ARROW KEYS OR WASD TO NAVIGATE • ENTER/SPACE TO SELECT • ESC TO GO BACK • F11 FOR FULLSCREEN"
-	} else {
-		hintText = "USE ARROW KEYS OR WASD TO NAVIGATE • ENTER/SPACE TO SELECT • ESC TO GO BACK"
-	}
-
-	hintX := float64(screenWidth) * 0.025
-	hintY := float64(screenHeight) * 0.95
-
-	esset.DrawText(screen, hintText, hintX, hintY, assets.FontFaceS, color.RGBA{150, 150, 150, 200})
 }
 
 func (m *Menu) getCurrentMenuItems() []MenuItem {
 	switch m.state {
-	case MenuStateSettings:
-		return m.settingsItems
 	case MenuStatePause:
 		return m.pauseItems
 	case MenuStateRespawn:

@@ -1020,12 +1020,6 @@ func (p *Player) IsPlayerDead() bool {
 	return p.IsDead
 }
 
-func (p *Player) Revive() {
-	p.IsDead = false
-	p.Health = p.MaxHealth
-	p.InvulnTimer = INVULNERABILITY_TIME
-}
-
 func (p *Player) ApplySlowdown(multiplier, duration float64) {
 	p.SpeedMultiplier = multiplier
 	p.SlowdownTimer = duration

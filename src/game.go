@@ -136,7 +136,6 @@ func NewGame() *Game {
 			NewSchizophrenicFragment(14000, 200),
 			NewRealityGlitch(14400, 180),
 			NewRealityGlitch(14500, 180),
-			NewUnionCrystal(15500, 220),
 		},
 		collectedItems:      make(map[SpecialItemType]bool),
 		totalItemsCollected: 0,
@@ -287,6 +286,11 @@ func (g *Game) Update() error {
 
 		if g.madnessLevel >= 1.0 {
 			g.player.TakeDamage(999)
+			g.state = GameStateDead
+			g.menu.SetRespawnState()
+		}
+
+		if g.player.Y >= 1000 {
 			g.state = GameStateDead
 			g.menu.SetRespawnState()
 		}
@@ -876,6 +880,24 @@ func (g *Game) updateProgression(itemType SpecialItemType) {
 	}
 
 	collectionProgress := float64(collectedItems) / float64(totalItems)
+
+	unionCrystalExists := false
+	for _, item := range g.specialItems {
+		if item.ItemType == ItemUnionCrystal {
+			unionCrystalExists = true
+			break
+		}
+	}
+	allCollected := true
+	for _, item := range g.specialItems {
+		if item.ItemType != ItemUnionCrystal && !item.Collected {
+			allCollected = false
+			break
+		}
+	}
+	if allCollected && !unionCrystalExists {
+		g.specialItems = append(g.specialItems, NewUnionCrystal(200, 220))
+	}
 
 	if hasUnionCrystal {
 		g.unionProgress = 1.0
