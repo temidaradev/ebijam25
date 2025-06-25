@@ -205,7 +205,10 @@ func (g *Game) Update() error {
 
 	switch g.state {
 	case GameStateMenu:
-		g.menu.Update()
+		err := g.menu.Update()
+		if err != nil {
+			return err
+		}
 
 		if g.menu.IsStartSelected() {
 			g.state = GameStatePlaying
@@ -294,7 +297,10 @@ func (g *Game) Update() error {
 		}
 
 	case GameStatePaused:
-		g.menu.Update()
+		err := g.menu.Update()
+		if err != nil {
+			return err
+		}
 
 		if g.menu.IsContinueRequested() {
 			g.state = GameStatePlaying
@@ -305,7 +311,10 @@ func (g *Game) Update() error {
 		}
 
 	case GameStateDead:
-		g.menu.Update()
+		err := g.menu.Update()
+		if err != nil {
+			return err
+		}
 
 		if g.menu.IsRestartRequested() {
 			g.restartGame()
