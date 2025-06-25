@@ -935,15 +935,6 @@ func (p *Player) GetHealthPercentage() float64 {
 	return float64(p.Health) / float64(p.MaxHealth)
 }
 
-func (p *Player) CheckProjectileCollision(projectile *Projectile) bool {
-	if p.IsInvulnerable() || !projectile.IsActive {
-		return false
-	}
-
-	px, py, pw, ph := p.GetBounds()
-	return projectile.CheckCollision(px, py, pw, ph)
-}
-
 func (p *Player) performAttack() {
 	p.IsAttacking = true
 	p.AttackTimer = ATTACK_DURATION

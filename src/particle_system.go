@@ -94,7 +94,7 @@ func (ps *ParticleSystem) updateParticle(p *Particle, deltaTime float64) {
 	p.Life -= deltaTime
 	lifeRatio := p.Life / p.MaxLife
 
-	p.Alpha = uint8(255 * lifeRatio)
+	p.Alpha = uint8(200 * lifeRatio) // was 255 * lifeRatio, now max 200
 
 	p.Rotation += p.RotationSpeed * deltaTime
 
@@ -126,7 +126,6 @@ func (ps *ParticleSystem) updateParticle(p *Particle, deltaTime float64) {
 			p.Color.G = uint8(rand.Intn(100))
 			p.Color.B = uint8(150 + rand.Intn(106))
 		}
-
 	case ParticleTypeGlitch:
 		if rand.Float64() < 0.05*ps.ChaosIntensity {
 			p.X += (rand.Float64() - 0.5) * 100
@@ -134,7 +133,6 @@ func (ps *ParticleSystem) updateParticle(p *Particle, deltaTime float64) {
 		}
 
 		p.Size = 2 + 8*math.Sin(ps.GlitchTimer*20+p.Rotation)
-
 	case ParticleTypeDimensionRip:
 		p.VelocityX *= 0.95
 		p.VelocityY *= 0.95
@@ -143,7 +141,6 @@ func (ps *ParticleSystem) updateParticle(p *Particle, deltaTime float64) {
 		if rand.Float64() < 0.3 && len(ps.Particles) < ps.MaxParticles-5 {
 			ps.SpawnChildParticle(p)
 		}
-
 	case ParticleTypeChaosOrb:
 		centerX := p.TargetX
 		centerY := p.TargetY

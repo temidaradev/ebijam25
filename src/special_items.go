@@ -62,7 +62,7 @@ func NewSchizophrenicFragment(x, y float64) *SpecialItem {
 		Collected:         false,
 		PulsePhase:        0,
 		Color:             color.RGBA{200, 50, 255, 255},
-		GlowColor:         color.RGBA{255, 100, 255, 100},
+		GlowColor:         color.RGBA{255, 100, 255, 100}, // already safe, max 100
 		Name:              "FRAGMENT OF MADNESS",
 		Description:       "A shard that breaks reality...",
 		ParticleSystem:    NewParticleSystem(10),
@@ -488,22 +488,6 @@ func (si *SpecialItem) spawnAuraParticles() {
 	}
 }
 
-func (si *SpecialItem) createRealityDistortion() {
-	if si.ParticleSystem == nil {
-		return
-	}
-
-	centerX := si.X + si.Width/2
-	centerY := si.Y + si.Height/2
-
-	burstCount := int(5 * si.IntensityLevel)
-	si.ParticleSystem.SpawnBurst(centerX, centerY, ParticleTypeDimensionRip, burstCount)
-
-	if si.IntensityLevel > 0.5 {
-		si.ParticleSystem.SpawnBurst(centerX, centerY, ParticleTypeChaosOrb, 2)
-	}
-}
-
 func (si *SpecialItem) Draw(screen *ebiten.Image, cameraX, cameraY float64) {
 	if !si.IsActive || si.Collected {
 		return
@@ -529,9 +513,9 @@ func (si *SpecialItem) Draw(screen *ebiten.Image, cameraX, cameraY float64) {
 
 	itemSize := si.Width * (0.8 + math.Sin(si.PulsePhase)*0.2)
 
-	flashIntensity := 1.0
+	flashIntensity := 0.7
 	if si.IsBeingHit && si.HitFlashTimer > 0 {
-		flashIntensity = 1.5 + math.Sin(si.HitFlashTimer*50)*0.5
+		flashIntensity = 1.0 + math.Sin(si.HitFlashTimer*10)*0.2 // reduced amplitude from 0.5 to 0.2
 	}
 
 	flashedColor := si.Color
@@ -543,7 +527,7 @@ func (si *SpecialItem) Draw(screen *ebiten.Image, cameraX, cameraY float64) {
 
 	switch si.ItemType {
 	case ItemSchizophrenicFragment:
-		for i := 0; i < 6; i++ {
+		for i := 0; i < 10; i++ {
 			angle := si.PulsePhase + float64(i)*math.Pi/3
 			fragmentX := screenX + math.Cos(angle)*itemSize*0.3
 			fragmentY := screenY + math.Sin(angle)*itemSize*0.3
@@ -554,7 +538,7 @@ func (si *SpecialItem) Draw(screen *ebiten.Image, cameraX, cameraY float64) {
 		}
 
 	case ItemRealityGlitch:
-		for i := 0; i < 4; i++ {
+		for i := 0; i < 5; i++ {
 			glitchOffset := (rand.Float64() - 0.5) * 8
 			glitchSize := itemSize * (0.7 + 0.3*rand.Float64())
 
@@ -572,7 +556,7 @@ func (si *SpecialItem) Draw(screen *ebiten.Image, cameraX, cameraY float64) {
 	case ItemMadnessCore:
 		vector.DrawFilledCircle(screen, float32(screenX), float32(screenY), float32(itemSize), flashedColor, false)
 
-		for ring := 1; ring <= 3; ring++ {
+		for ring := 1; ring <= 5; ring++ {
 			ringRadius := itemSize * (1.2 + float64(ring)*0.4)
 			ringRadius *= (1.0 + math.Sin(si.PulsePhase*float64(ring+2))*0.3)
 
@@ -589,7 +573,7 @@ func (si *SpecialItem) Draw(screen *ebiten.Image, cameraX, cameraY float64) {
 	case ItemHarmonyFragment:
 		vector.DrawFilledCircle(screen, float32(screenX), float32(screenY), float32(itemSize), si.Color, false)
 
-		for aura := 1; aura <= 3; aura++ {
+		for aura := 1; aura <= 5; aura++ {
 			auraSize := itemSize * (1.1 + float64(aura)*0.3)
 			auraColor := si.GlowColor
 			auraColor.A = uint8(float64(si.GlowColor.A) / (1.0 + float64(aura)*0.5))

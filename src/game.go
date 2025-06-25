@@ -42,7 +42,6 @@ type Game struct {
 	colorShiftIntensity  float64
 	screenShakeX         float64
 	screenShakeY         float64
-	hallucinationEnemies []*Enemy
 	isRealityBroken      bool
 	glitchMessages       []string
 	messageTimer         float64
@@ -109,20 +108,44 @@ func NewGame() *Game {
 			NewMadnessCore(3000, 130),
 			NewSchizophrenicFragment(4200, 200),
 			NewRealityGlitch(6000, 170),
+			NewSchizophrenicFragment(7000, 200),
+			NewRealityGlitch(7500, 180),
 			NewSchizophrenicFragment(8000, 180),
-			NewMadnessCore(10000, 120),
+			NewSchizophrenicFragment(4000, 180),
+			NewSchizophrenicFragment(4500, 180),
+			NewSchizophrenicFragment(5000, 180),
+			NewSchizophrenicFragment(6000, 250),
+			NewRealityGlitch(1800, 180),
+			NewMadnessCore(2000, 130),
+			NewSchizophrenicFragment(8500, 200),
+			NewSchizophrenicFragment(9000, 200),
+			NewMadnessCore(8500, 120),
+			NewRealityGlitch(2400, 170),
+			NewSchizophrenicFragment(10500, 180),
+			NewRealityGlitch(11000, 170),
+			NewSchizophrenicFragment(11500, 200),
+			NewMadnessCore(11000, 120),
 			NewSchizophrenicFragment(12000, 200),
-			NewUnionCrystal(14000, 150),
+			NewSchizophrenicFragment(13000, 200),
+			NewSchizophrenicFragment(13200, 200),
+			NewSchizophrenicFragment(13300, 200),
+			NewSchizophrenicFragment(13400, 200),
+			NewSchizophrenicFragment(13500, 200),
+			NewMadnessCore(13700, 120),
+			NewMadnessCore(13800, 120),
+			NewSchizophrenicFragment(14000, 200),
+			NewRealityGlitch(14400, 180),
+			NewRealityGlitch(14500, 180),
+			NewUnionCrystal(15500, 220),
 		},
-		collectedItems:       make(map[SpecialItemType]bool),
-		totalItemsCollected:  0,
-		maxItems:             50,
-		realityGlitchTimer:   0,
-		colorShiftIntensity:  0,
-		screenShakeX:         0,
-		screenShakeY:         0,
-		hallucinationEnemies: []*Enemy{},
-		isRealityBroken:      false,
+		collectedItems:      make(map[SpecialItemType]bool),
+		totalItemsCollected: 0,
+		maxItems:            50,
+		realityGlitchTimer:  0,
+		colorShiftIntensity: 0,
+		screenShakeX:        0,
+		screenShakeY:        0,
+		isRealityBroken:     false,
 		glitchMessages: []string{
 			"THE WALLS ARE BREATHING AND BLEEDING PIXELS",
 			"DO YOU SEE THE PARTICLE STORM? IT SEES YOU",
@@ -156,7 +179,7 @@ func NewGame() *Game {
 		dimensionSlipTimer:   0,
 
 		globalParticleSystem:  NewParticleSystem(50),
-		madnessParticleSystem: NewParticleSystem(25),
+		madnessParticleSystem: NewParticleSystem(40),
 
 		healthDecayTimer:   0,
 		healthDecayRate:    0.1,
@@ -223,7 +246,7 @@ func (g *Game) Update() error {
 			return nil
 		}
 
-		g.chaosIntensityLevel = g.madnessLevel * (1.0 + 0.3*math.Sin(g.realityGlitchTimer*7.0))
+		g.chaosIntensityLevel = g.madnessLevel * (.5 + 0.3*math.Sin(g.realityGlitchTimer*7.0))
 
 		for _, item := range g.specialItems {
 			item.Update(deltaTime)
@@ -344,32 +367,29 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		g.globalParticleSystem.Draw(screen, cameraX, cameraY)
 		g.madnessParticleSystem.Draw(screen, cameraX, cameraY)
 
-		for _, enemy := range g.hallucinationEnemies {
-			enemy.Draw(screen, camera)
-		}
-
 		g.drawPlayerWithCamera(screen, camera)
 
-		if g.colorShiftIntensity > 0 {
-			limitedIntensity := math.Min(g.colorShiftIntensity, 0.5)
+		if g.colorShiftIntensity > 0.01 {
+			limitedIntensity := math.Min(g.colorShiftIntensity, 0.2)
+			alpha := uint8(math.Min(16, 16*limitedIntensity))
 			overlayColor := color.RGBA{
-				uint8(120 * math.Sin(g.realityGlitchTimer*10.0) * limitedIntensity),
-				uint8(120 * math.Sin(g.realityGlitchTimer*7.0) * limitedIntensity),
-				uint8(120 * math.Sin(g.realityGlitchTimer*13.0) * limitedIntensity),
-				uint8(10 * limitedIntensity),
+				uint8(120 * math.Sin(g.realityGlitchTimer*3.0)), // slowed from 10.0
+				uint8(120 * math.Sin(g.realityGlitchTimer*2.0)), // slowed from 7.0
+				uint8(120 * math.Sin(g.realityGlitchTimer*4.0)), // slowed from 13.0
+				alpha,
 			}
 			vector.DrawFilledRect(screen, 0, 0, float32(screenWidth), float32(screenHeight), overlayColor, false)
 		}
 
 		if g.madnessLevel >= 0.8 {
-			criticalIntensity := (g.madnessLevel - 0.8) / 0.2
-			pulseIntensity := 0.5 + 0.5*math.Sin(g.realityGlitchTimer*15.0)
+			criticalIntensity := 0.2
+			pulseIntensity := 5.
 
 			criticalOverlay := color.RGBA{
 				255,
 				0,
 				0,
-				uint8(100 * criticalIntensity * pulseIntensity),
+				uint8(10 * criticalIntensity * pulseIntensity),
 			}
 			vector.DrawFilledRect(screen, 0, 0, float32(screenWidth), float32(screenHeight), criticalOverlay, false)
 		}
@@ -417,12 +437,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			}
 
 			if g.madnessLevel >= 0.9 {
-				flashIntensity := 0.5 + 0.5*math.Sin(g.realityGlitchTimer*10.0)
+				flashIntensity := 0.1 + 0.1*math.Sin(g.realityGlitchTimer*0.5) // slowed from 1.0
 				madnessColor = color.RGBA{
 					255,
 					uint8(100 * flashIntensity),
 					uint8(100 * flashIntensity),
-					255,
+					100,
 				}
 			}
 
@@ -657,8 +677,6 @@ func (g *Game) restartGame() {
 		item.LastParticleSpawn = 0
 	}
 
-	g.hallucinationEnemies = []*Enemy{}
-
 	if g.globalParticleSystem != nil {
 		g.globalParticleSystem = NewParticleSystem(200)
 	}
@@ -691,7 +709,7 @@ func (g *Game) updateSchizophrenicEffects(deltaTime float64) {
 
 	g.realityGlitchTimer += deltaTime
 
-	g.colorShiftIntensity = math.Sin(g.realityGlitchTimer*5.0)*0.5 + 0.5
+	g.colorShiftIntensity = math.Sin(g.realityGlitchTimer*5.0) * 0.5
 	g.colorShiftIntensity *= effectiveMadness
 
 	shakeIntensity := effectiveMadness * 5.0
@@ -725,20 +743,20 @@ func (g *Game) updateSchizophrenicEffects(deltaTime float64) {
 
 	g.dimensionSlipTimer += deltaTime
 	if g.dimensionSlipTimer > 10.0 && effectiveMadness > 0.7 {
-		g.createHallucinationEnemies()
+		//g.createHallucinationEnemies()
 		g.dimensionSlipTimer = 0
 	}
 
-	playerX, playerY, _, _ := g.player.GetBounds()
-	for i := len(g.hallucinationEnemies) - 1; i >= 0; i-- {
-		enemy := g.hallucinationEnemies[i]
-		enemy.Update(deltaTime, playerX, playerY, g.player.CollisionSystem)
+	// playerX, playerY, _, _ := g.player.GetBounds()
+	// for i := len(g.hallucinationEnemies) - 1; i >= 0; i-- {
+	// 	enemy := g.hallucinationEnemies[i]
+	// 	enemy.Update(deltaTime, playerX, playerY, g.player.CollisionSystem)
 
-		fadeChance := 0.02 + (1.0-effectiveMadness)*0.05 + g.worldStabilityLevel*0.1
-		if rand.Float64() < fadeChance {
-			g.hallucinationEnemies = append(g.hallucinationEnemies[:i], g.hallucinationEnemies[i+1:]...)
-		}
-	}
+	// 	fadeChance := 0.02 + (1.0-effectiveMadness)*0.05 + g.worldStabilityLevel*0.1
+	// 	if rand.Float64() < fadeChance {
+	// 		g.hallucinationEnemies = append(g.hallucinationEnemies[:i], g.hallucinationEnemies[i+1:]...)
+	// 	}
+	// }
 
 	if rand.Float64() < effectiveMadness*0.05*(1.0-g.worldStabilityLevel) {
 		g.isRealityBroken = !g.isRealityBroken
@@ -761,7 +779,7 @@ func (g *Game) triggerMadness(itemType SpecialItemType) {
 		g.isRealityBroken = true
 		g.screenShakeX = (rand.Float64() - 0.5) * 5.0
 		g.screenShakeY = (rand.Float64() - 0.5) * 5.0
-		g.createHallucinationEnemies()
+		//g.createHallucinationEnemies()
 
 	case ItemMadnessCore:
 		g.madnessLevel = math.Min(0.8, g.madnessLevel+0.35)
@@ -770,7 +788,7 @@ func (g *Game) triggerMadness(itemType SpecialItemType) {
 		g.isRealityBroken = true
 		g.screenShakeX = (rand.Float64() - 0.5) * 8.0
 		g.screenShakeY = (rand.Float64() - 0.5) * 8.0
-		g.createHallucinationEnemies()
+		//g.createHallucinationEnemies()
 
 	case ItemUnionCrystal:
 		g.madnessLevel = 0
@@ -779,7 +797,7 @@ func (g *Game) triggerMadness(itemType SpecialItemType) {
 		g.worldStabilityLevel = 1.0
 		g.unionProgress = 1.0
 		g.isRealityBroken = false
-		g.hallucinationEnemies = g.hallucinationEnemies[:0]
+		//g.hallucinationEnemies = g.hallucinationEnemies[:0]
 		g.triggerUnionEffect()
 		if !g.endingTriggered {
 			g.endingAnimation.Start()
@@ -792,9 +810,9 @@ func (g *Game) triggerMadness(itemType SpecialItemType) {
 		g.currentGlitchMessage = "WORLD STABILIZES... REALITY BECOMING CLEARER"
 		g.messageTimer = 3.0
 		g.worldStabilityLevel = math.Min(1.0, g.worldStabilityLevel+0.25)
-		if len(g.hallucinationEnemies) > 1 {
-			g.hallucinationEnemies = g.hallucinationEnemies[:len(g.hallucinationEnemies)/2]
-		}
+		// if len(g.hallucinationEnemies) > 1 {
+		// 	g.hallucinationEnemies = g.hallucinationEnemies[:len(g.hallucinationEnemies)/2]
+		// }
 	}
 
 	g.realityGlitchTimer = 0
@@ -803,38 +821,14 @@ func (g *Game) triggerMadness(itemType SpecialItemType) {
 	g.screenShakeX = (rand.Float64() - 0.5) * 4.0
 	g.screenShakeY = (rand.Float64() - 0.5) * 4.0
 
-	if itemType <= ItemMadnessCore && len(g.hallucinationEnemies) < 3 {
-		playerX, _, _, _ := g.player.GetBounds()
-		hallucinationX := playerX + (rand.Float64()-0.5)*400
-		hallucinationY := 350 + (rand.Float64()-0.5)*100
+	// if itemType <= ItemMadnessCore && len(g.hallucinationEnemies) < 3 {
+	// 	playerX, _, _, _ := g.player.GetBounds()
+	// 	hallucinationX := playerX + (rand.Float64()-0.5)*400
+	// 	hallucinationY := 350 + (rand.Float64()-0.5)*100
 
-		enemy := NewGlitchedEnemy(hallucinationX, hallucinationY)
-		g.hallucinationEnemies = append(g.hallucinationEnemies, enemy)
-	}
-}
-
-func (g *Game) triggerRealityGlitch() {
-	if g.madnessLevel > 0 {
-		g.madnessLevel = math.Min(1.0, g.madnessLevel+0.1)
-		g.realityGlitchTimer = 0
-		g.isRealityBroken = true
-
-		g.screenShakeX = (rand.Float64() - 0.5) * 10.0
-		g.screenShakeY = (rand.Float64() - 0.5) * 10.0
-	}
-}
-
-func (g *Game) createHallucinationEnemies() {
-	playerX, _, _, _ := g.player.GetBounds()
-
-	count := 2 + rand.Intn(3)
-	for i := 0; i < count; i++ {
-		x := playerX + (rand.Float64()-0.5)*600
-		y := 300 + rand.Float64()*200
-
-		enemy := NewGlitchedEnemy(x, y)
-		g.hallucinationEnemies = append(g.hallucinationEnemies, enemy)
-	}
+	// 	enemy := NewGlitchedEnemy(hallucinationX, hallucinationY)
+	// 	g.hallucinationEnemies = append(g.hallucinationEnemies, enemy)
+	// }
 }
 
 func (g *Game) updateProgression(itemType SpecialItemType) {
