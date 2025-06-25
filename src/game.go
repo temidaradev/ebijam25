@@ -331,8 +331,8 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	switch g.state {
 	case GameStateMenu:
-		layers := assets.GetLayersByEnvironment(g.currentEnvironment)
-		assets.DrawBackgroundLayers(screen, layers, g.parallaxOffset*0.1, 0, screenWidth, screenHeight)
+		layers := assets.GetLayersByEnvironment()
+		assets.DrawBackgroundLayers(screen, layers, g.parallaxOffset*0.1, 0, screenWidth)
 		g.menu.Draw(screen)
 
 	case GameStatePlaying:
@@ -342,22 +342,22 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		cameraX += g.screenShakeX
 		cameraY += g.screenShakeY
 
-		layers := assets.GetLayersByEnvironment(g.currentEnvironment)
+		layers := assets.GetLayersByEnvironment()
 
 		if g.isRealityBroken || g.chaosAtmosphereLevel > 0.7 {
 			glitchOffset := g.parallaxOffset * (1.0 + rand.Float64()*0.5)
 			atmosphereOffset := g.chaosAtmosphereLevel * 3.0 * math.Sin(g.realityGlitchTimer*6.0)
 			totalOffsetX := cameraX + glitchOffset + g.screenDistortionX*0.2 + atmosphereOffset
 			totalOffsetY := cameraY + glitchOffset + g.screenDistortionY*0.2 + atmosphereOffset*0.2
-			assets.DrawBackgroundLayers(screen, layers, totalOffsetX, totalOffsetY, screenWidth, screenHeight)
+			assets.DrawBackgroundLayers(screen, layers, totalOffsetX, totalOffsetY, screenWidth)
 		} else {
 			distortedX := cameraX + g.screenDistortionX*0.1
 			distortedY := cameraY + g.screenDistortionY*0.1
-			assets.DrawBackgroundLayers(screen, layers, distortedX, distortedY, screenWidth, screenHeight)
+			assets.DrawBackgroundLayers(screen, layers, distortedX, distortedY, screenWidth)
 		}
 
 		if assets.DesertTileMap != nil {
-			assets.DesertTileMap.Draw(screen, cameraX, cameraY, float64(screenWidth), float64(screenHeight))
+			assets.DesertTileMap.Draw(screen, cameraX, cameraY)
 		}
 
 		for _, item := range g.specialItems {
@@ -373,9 +373,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			limitedIntensity := math.Min(g.colorShiftIntensity, 0.2)
 			alpha := uint8(math.Min(16, 16*limitedIntensity))
 			overlayColor := color.RGBA{
-				uint8(120 * math.Sin(g.realityGlitchTimer*3.0)), // slowed from 10.0
-				uint8(120 * math.Sin(g.realityGlitchTimer*2.0)), // slowed from 7.0
-				uint8(120 * math.Sin(g.realityGlitchTimer*4.0)), // slowed from 13.0
+				uint8(120 * math.Sin(g.realityGlitchTimer*3.0)),
+				uint8(120 * math.Sin(g.realityGlitchTimer*2.0)),
+				uint8(120 * math.Sin(g.realityGlitchTimer*4.0)),
 				alpha,
 			}
 			vector.DrawFilledRect(screen, 0, 0, float32(screenWidth), float32(screenHeight), overlayColor, false)
@@ -437,7 +437,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			}
 
 			if g.madnessLevel >= 0.9 {
-				flashIntensity := 0.1 + 0.1*math.Sin(g.realityGlitchTimer*0.5) // slowed from 1.0
+				flashIntensity := 0.1 + 0.1*math.Sin(g.realityGlitchTimer*0.5)
 				madnessColor = color.RGBA{
 					255,
 					uint8(100 * flashIntensity),
@@ -462,11 +462,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		camera := g.player.GetCamera()
 		cameraX, cameraY := camera.GetView()
 
-		layers := assets.GetLayersByEnvironment(g.currentEnvironment)
-		assets.DrawBackgroundLayers(screen, layers, cameraX, cameraY, screenWidth, screenHeight)
+		layers := assets.GetLayersByEnvironment()
+		assets.DrawBackgroundLayers(screen, layers, cameraX, cameraY, screenWidth)
 
 		if assets.DesertTileMap != nil {
-			assets.DesertTileMap.Draw(screen, cameraX, cameraY, float64(screenWidth), float64(screenHeight))
+			assets.DesertTileMap.Draw(screen, cameraX, cameraY)
 		}
 
 		g.drawPlayerWithCamera(screen, camera)
@@ -486,11 +486,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		camera := g.player.GetCamera()
 		cameraX, cameraY := camera.GetView()
 
-		layers := assets.GetLayersByEnvironment(g.currentEnvironment)
-		assets.DrawBackgroundLayers(screen, layers, cameraX, cameraY, screenWidth, screenHeight)
+		layers := assets.GetLayersByEnvironment()
+		assets.DrawBackgroundLayers(screen, layers, cameraX, cameraY, screenWidth)
 
 		if assets.DesertTileMap != nil {
-			assets.DesertTileMap.Draw(screen, cameraX, cameraY, float64(screenWidth), float64(screenHeight))
+			assets.DesertTileMap.Draw(screen, cameraX, cameraY)
 		}
 
 		g.drawPlayerWithCamera(screen, camera)
@@ -504,11 +504,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		camera := g.player.GetCamera()
 		cameraX, cameraY := camera.GetView()
 
-		layers := assets.GetLayersByEnvironment(g.currentEnvironment)
-		assets.DrawBackgroundLayers(screen, layers, cameraX, cameraY, screenWidth, screenHeight)
+		layers := assets.GetLayersByEnvironment()
+		assets.DrawBackgroundLayers(screen, layers, cameraX, cameraY, screenWidth)
 
 		if assets.DesertTileMap != nil {
-			assets.DesertTileMap.Draw(screen, cameraX, cameraY, float64(screenWidth), float64(screenHeight))
+			assets.DesertTileMap.Draw(screen, cameraX, cameraY)
 		}
 
 		for _, item := range g.specialItems {
@@ -743,20 +743,8 @@ func (g *Game) updateSchizophrenicEffects(deltaTime float64) {
 
 	g.dimensionSlipTimer += deltaTime
 	if g.dimensionSlipTimer > 10.0 && effectiveMadness > 0.7 {
-		//g.createHallucinationEnemies()
 		g.dimensionSlipTimer = 0
 	}
-
-	// playerX, playerY, _, _ := g.player.GetBounds()
-	// for i := len(g.hallucinationEnemies) - 1; i >= 0; i-- {
-	// 	enemy := g.hallucinationEnemies[i]
-	// 	enemy.Update(deltaTime, playerX, playerY, g.player.CollisionSystem)
-
-	// 	fadeChance := 0.02 + (1.0-effectiveMadness)*0.05 + g.worldStabilityLevel*0.1
-	// 	if rand.Float64() < fadeChance {
-	// 		g.hallucinationEnemies = append(g.hallucinationEnemies[:i], g.hallucinationEnemies[i+1:]...)
-	// 	}
-	// }
 
 	if rand.Float64() < effectiveMadness*0.05*(1.0-g.worldStabilityLevel) {
 		g.isRealityBroken = !g.isRealityBroken
@@ -779,7 +767,6 @@ func (g *Game) triggerMadness(itemType SpecialItemType) {
 		g.isRealityBroken = true
 		g.screenShakeX = (rand.Float64() - 0.5) * 5.0
 		g.screenShakeY = (rand.Float64() - 0.5) * 5.0
-		//g.createHallucinationEnemies()
 
 	case ItemMadnessCore:
 		g.madnessLevel = math.Min(0.8, g.madnessLevel+0.35)
@@ -788,7 +775,6 @@ func (g *Game) triggerMadness(itemType SpecialItemType) {
 		g.isRealityBroken = true
 		g.screenShakeX = (rand.Float64() - 0.5) * 8.0
 		g.screenShakeY = (rand.Float64() - 0.5) * 8.0
-		//g.createHallucinationEnemies()
 
 	case ItemUnionCrystal:
 		g.madnessLevel = 0
@@ -797,12 +783,12 @@ func (g *Game) triggerMadness(itemType SpecialItemType) {
 		g.worldStabilityLevel = 1.0
 		g.unionProgress = 1.0
 		g.isRealityBroken = false
-		//g.hallucinationEnemies = g.hallucinationEnemies[:0]
 		g.triggerUnionEffect()
 		if !g.endingTriggered {
 			g.endingAnimation.Start()
 			g.endingTriggered = true
 		}
+	default:
 	}
 
 	if g.totalItemsCollected > 0 && g.totalItemsCollected%5 == 0 {
@@ -810,9 +796,6 @@ func (g *Game) triggerMadness(itemType SpecialItemType) {
 		g.currentGlitchMessage = "WORLD STABILIZES... REALITY BECOMING CLEARER"
 		g.messageTimer = 3.0
 		g.worldStabilityLevel = math.Min(1.0, g.worldStabilityLevel+0.25)
-		// if len(g.hallucinationEnemies) > 1 {
-		// 	g.hallucinationEnemies = g.hallucinationEnemies[:len(g.hallucinationEnemies)/2]
-		// }
 	}
 
 	g.realityGlitchTimer = 0
@@ -820,15 +803,6 @@ func (g *Game) triggerMadness(itemType SpecialItemType) {
 
 	g.screenShakeX = (rand.Float64() - 0.5) * 4.0
 	g.screenShakeY = (rand.Float64() - 0.5) * 4.0
-
-	// if itemType <= ItemMadnessCore && len(g.hallucinationEnemies) < 3 {
-	// 	playerX, _, _, _ := g.player.GetBounds()
-	// 	hallucinationX := playerX + (rand.Float64()-0.5)*400
-	// 	hallucinationY := 350 + (rand.Float64()-0.5)*100
-
-	// 	enemy := NewGlitchedEnemy(hallucinationX, hallucinationY)
-	// 	g.hallucinationEnemies = append(g.hallucinationEnemies, enemy)
-	// }
 }
 
 func (g *Game) updateProgression(itemType SpecialItemType) {

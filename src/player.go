@@ -106,7 +106,6 @@ const (
 
 	DASH_SPEED    = 450.0
 	DASH_DURATION = 0.2
-	DASH_COOLDOWN = 0.8
 
 	INVULNERABILITY_TIME = 1.0
 
@@ -268,7 +267,6 @@ func (p *Player) updateTimers(deltaTime float64) {
 		p.InvulnTimer -= deltaTime
 	}
 
-	// Combat timers
 	if p.AttackTimer > 0 {
 		p.AttackTimer -= deltaTime
 		if p.AttackTimer <= 0 {
@@ -288,7 +286,6 @@ func (p *Player) updateTimers(deltaTime float64) {
 		}
 	}
 
-	// Wall climbing timers
 	if p.WallGrabTimer > 0 {
 		p.WallGrabTimer -= deltaTime
 		if p.WallGrabTimer <= 0 {
@@ -297,7 +294,6 @@ func (p *Player) updateTimers(deltaTime float64) {
 		}
 	}
 
-	// Slip timer
 	if p.SlipTimer > 0 {
 		p.SlipTimer -= deltaTime
 		if p.SlipTimer <= 0 {
@@ -324,24 +320,19 @@ func (p *Player) handleInput(deltaTime float64) {
 
 	const deadZone = 0.2
 
-	// Store input state for physics calculations
 	p.IsMovingLeft = (leftPressed || controllerLeft)
 	p.IsMovingRight = (rightPressed || controllerRight)
 
-	// Handle attacks (annoying restriction: can't attack while sliding AND brief delay after landing)
-	landingDelay := p.OnGround && p.groundBuffer > 0 // Just landed
+	landingDelay := p.OnGround && p.groundBuffer > 0
 	if attackPressed && !p.IsAttacking && p.AttackCooldown <= 0 && !p.IsRolling && !landingDelay {
 		p.performAttack()
 	}
 
-	// Handle rolling/sliding
 	if !p.IsRolling && rollPressed && p.OnGround {
 		p.IsRolling = true
 		p.RollTimer = RollDuration
-		// Inherit current velocity for momentum-based sliding
 		slideSpeed := RollSpeed
 		if math.Abs(p.VelocityX) > slideSpeed {
-			// Maintain momentum if moving faster than roll speed
 			slideSpeed = math.Abs(p.VelocityX)
 		}
 
@@ -352,23 +343,18 @@ func (p *Player) handleInput(deltaTime float64) {
 		}
 	}
 
-	// Continue sliding while key is held or timer is active
 	if p.IsRolling {
-		// Enhanced slide control for parkour
 		if slideHeld && p.OnGround {
-			p.RollTimer = RollDuration * 0.6 // Extended slide duration
+			p.RollTimer = RollDuration * 0.6
 		}
 
-		// Apply slide friction gradually
-		slideFriction := 0.95 // Less friction for smoother slides
+		slideFriction := 0.95
 		if p.OnGround {
 			p.VelocityX *= slideFriction
 		}
 
-		// Allow directional control during slide (but maintain momentum)
 		if (leftPressed || controllerLeft) && !(rightPressed || controllerRight) {
 			if p.VelocityX > 0 {
-				// Turning around during slide - reduce speed more
 				p.VelocityX *= 0.8
 			}
 			if p.VelocityX > -RollSpeed*0.5 {
@@ -377,7 +363,6 @@ func (p *Player) handleInput(deltaTime float64) {
 			p.FacingRight = false
 		} else if (rightPressed || controllerRight) && !(leftPressed || controllerLeft) {
 			if p.VelocityX < 0 {
-				// Turning around during slide - reduce speed more
 				p.VelocityX *= 0.8
 			}
 			if p.VelocityX < RollSpeed*0.5 {
@@ -386,7 +371,6 @@ func (p *Player) handleInput(deltaTime float64) {
 			p.FacingRight = true
 		}
 
-		// End slide conditions
 		p.RollTimer -= deltaTime
 		if p.RollTimer <= 0 || !p.OnGround || math.Abs(p.VelocityX) < 50 {
 			p.IsRolling = false
@@ -395,7 +379,6 @@ func (p *Player) handleInput(deltaTime float64) {
 		return
 	}
 
-	// Update wall detection for parkour
 	p.checkWallCollision()
 
 	if (leftPressed || controllerLeft) && !(rightPressed || controllerRight) {
@@ -404,7 +387,6 @@ func (p *Player) handleInput(deltaTime float64) {
 			if intensity > 1.0 {
 				intensity = 1.0
 			}
-			// Apply physics corruption to movement
 			corruptedSpeed := p.MaxSpeed * intensity * p.SpeedMultiplier * p.InertiaMultiplier
 			p.VelocityX = -corruptedSpeed
 		} else {
@@ -418,7 +400,6 @@ func (p *Player) handleInput(deltaTime float64) {
 			if intensity > 1.0 {
 				intensity = 1.0
 			}
-			// Apply physics corruption to movement
 			corruptedSpeed := p.MaxSpeed * intensity * p.SpeedMultiplier * p.InertiaMultiplier
 			p.VelocityX = corruptedSpeed
 		} else {
@@ -429,7 +410,7 @@ func (p *Player) handleInput(deltaTime float64) {
 	} else {
 		var decelAmount float64
 		if p.OnGround {
-			baseDecel := p.Deceleration * 2.8 * p.FrictionMultiplier // Apply friction corruption
+			baseDecel := p.Deceleration * 2.8 * p.FrictionMultiplier
 			speedFactor := math.Min(2.0, math.Abs(p.VelocityX)/150.0)
 			decelAmount = baseDecel * speedFactor * deltaTime
 
@@ -480,7 +461,6 @@ func (p *Player) handleInput(deltaTime float64) {
 				p.jumpBuffer = 0
 				p.DoubleJumpUsed = false
 			} else {
-				// Wall jump (jumping away from wall)
 				if p.OnWallLeft {
 					p.VelocityX = WALL_JUMP_HORIZONTAL
 					p.FacingRight = true
@@ -527,12 +507,10 @@ func (p *Player) updatePhysics(deltaTime float64) {
 		if p.IsWallClimbing {
 			if !((p.OnWallLeft && p.IsMovingLeft) ||
 				(p.OnWallRight && p.IsMovingRight)) {
-				// Player let go of wall
 				p.IsWallClimbing = false
 				p.WallGrabTimer = 0
 			}
 		} else if (p.OnWallLeft || p.OnWallRight) && p.VelocityY > 0 {
-			// Apply corrupted gravity to wall sliding
 			corruptedGravity := Gravity * p.GravityMultiplier
 			p.VelocityY += corruptedGravity * deltaTime * 0.3
 			wallSlideSpeed := WALL_SLIDE_SPEED * p.FrictionMultiplier
@@ -540,7 +518,6 @@ func (p *Player) updatePhysics(deltaTime float64) {
 				p.VelocityY = wallSlideSpeed
 			}
 		} else {
-			// Apply corrupted gravity to normal falling
 			corruptedGravity := Gravity * p.GravityMultiplier
 			p.VelocityY += corruptedGravity * deltaTime
 		}
@@ -780,7 +757,6 @@ func (p *Player) OnCollision(info CollisionInfo) {
 		p.VelocityY = 0
 	}
 
-	// Additional safety check: if we have any collision and are falling, check if we should be on ground
 	if info.HasCollision && p.VelocityY > 0 {
 		currentBox := p.GetCollisionBox()
 		if p.CollisionSystem.CheckCollisionAtPoint(currentBox) {
@@ -1096,6 +1072,7 @@ func (p *Player) UpdatePhysicsCorruption(specialItems []*SpecialItem, deltaTime 
 		case ItemMadnessCore:
 			corruptionRadius = 300.0
 			corruptionStrength = 0.8
+		default:
 		}
 
 		if distance < corruptionRadius {

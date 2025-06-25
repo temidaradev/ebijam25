@@ -62,7 +62,7 @@ func NewSchizophrenicFragment(x, y float64) *SpecialItem {
 		Collected:         false,
 		PulsePhase:        0,
 		Color:             color.RGBA{200, 50, 255, 255},
-		GlowColor:         color.RGBA{255, 100, 255, 100}, // already safe, max 100
+		GlowColor:         color.RGBA{255, 100, 255, 100},
 		Name:              "FRAGMENT OF MADNESS",
 		Description:       "A shard that breaks reality...",
 		ParticleSystem:    NewParticleSystem(10),
@@ -153,74 +153,6 @@ func NewMadnessCore(x, y float64) *SpecialItem {
 	}
 }
 
-func NewHarmonyFragment(x, y float64) *SpecialItem {
-	return &SpecialItem{
-		X:                 x,
-		Y:                 y,
-		Width:             14,
-		Height:            14,
-		ItemType:          ItemHarmonyFragment,
-		IsActive:          true,
-		Collected:         false,
-		PulsePhase:        0,
-		Color:             color.RGBA{100, 255, 150, 255},
-		GlowColor:         color.RGBA{150, 255, 200, 120},
-		Name:              "HARMONY FRAGMENT",
-		Description:       "Restoring balance to reality...",
-		ParticleSystem:    NewParticleSystem(20),
-		IntensityLevel:    -0.3,
-		MadnessRadius:     40,
-		LastParticleSpawn: 0,
-		Health:            2,
-		MaxHealth:         2,
-		HitFlashTimer:     0,
-		IsBeingHit:        false,
-
-		VelocityX:     40,
-		VelocityY:     20,
-		OriginalX:     x,
-		OriginalY:     y,
-		MovementTimer: 0,
-		MovementType:  0,
-		TeleportTimer: 0,
-		CanTeleport:   true,
-	}
-}
-
-func NewStabilityCore(x, y float64) *SpecialItem {
-	return &SpecialItem{
-		X:                 x,
-		Y:                 y,
-		Width:             18,
-		Height:            18,
-		ItemType:          ItemStabilityCore,
-		IsActive:          true,
-		Collected:         false,
-		PulsePhase:        0,
-		Color:             color.RGBA{100, 200, 255, 255},
-		GlowColor:         color.RGBA{150, 220, 255, 140},
-		Name:              "STABILITY CORE",
-		Description:       "Reality is crystallizing...",
-		ParticleSystem:    NewParticleSystem(25),
-		IntensityLevel:    -0.5,
-		MadnessRadius:     50,
-		LastParticleSpawn: 0,
-		Health:            3,
-		MaxHealth:         3,
-		HitFlashTimer:     0,
-		IsBeingHit:        false,
-
-		VelocityX:     30,
-		VelocityY:     10,
-		OriginalX:     x,
-		OriginalY:     y,
-		MovementTimer: 0,
-		MovementType:  1,
-		TeleportTimer: 0,
-		CanTeleport:   true,
-	}
-}
-
 func NewUnionCrystal(x, y float64) *SpecialItem {
 	return &SpecialItem{
 		X:                 x,
@@ -301,7 +233,9 @@ func (si *SpecialItem) Update(deltaTime float64) {
 			si.Color.R = uint8(220 + rand.Intn(35))
 			si.Color.G = uint8(rand.Intn(30))
 			si.Color.B = uint8(rand.Intn(30))
+		default:
 		}
+
 	}
 
 	si.UpdateMovement(deltaTime)
@@ -366,6 +300,7 @@ func (si *SpecialItem) UpdateMovement(deltaTime float64) {
 			teleportInterval = 10.0
 		case ItemUnionCrystal:
 			teleportInterval = 20.0
+		default:
 		}
 
 		if si.TeleportTimer > teleportInterval {
@@ -515,7 +450,7 @@ func (si *SpecialItem) Draw(screen *ebiten.Image, cameraX, cameraY float64) {
 
 	flashIntensity := 0.7
 	if si.IsBeingHit && si.HitFlashTimer > 0 {
-		flashIntensity = 1.0 + math.Sin(si.HitFlashTimer*10)*0.2 // reduced amplitude from 0.5 to 0.2
+		flashIntensity = 1.0 + math.Sin(si.HitFlashTimer*10)*0.2
 	}
 
 	flashedColor := si.Color

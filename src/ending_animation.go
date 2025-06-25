@@ -74,7 +74,7 @@ func NewEndingAnimation(screenWidth, screenHeight int) *EndingAnimation {
 	}
 
 	ending.generateCrystalPoints()
-	ending.generateUnionPoints(screenWidth, screenHeight)
+	ending.generateUnionPoints(screenWidth)
 	ending.createFragments(screenWidth, screenHeight)
 
 	return ending
@@ -146,7 +146,7 @@ func (ea *EndingAnimation) generateCrystalPoints() {
 	}
 }
 
-func (ea *EndingAnimation) generateUnionPoints(screenWidth, screenHeight int) {
+func (ea *EndingAnimation) generateUnionPoints(screenWidth int) {
 	ea.UnionPoints = make([]struct{ X, Y float64 }, 0, 80)
 
 	textCenterX := float64(screenWidth) / 2
@@ -345,13 +345,13 @@ func (ea *EndingAnimation) Update(deltaTime float64) {
 			ea.Timer = 0
 		}
 	case EndingStateFormingCrystal:
-		ea.updateFormingCrystal(deltaTime)
+		ea.updateFormingCrystal()
 		if ea.Timer > 4.0 {
 			ea.State = EndingStateCrystalComplete
 			ea.Timer = 0
 		}
 	case EndingStateCrystalComplete:
-		ea.updateCrystalComplete(deltaTime)
+		ea.updateCrystalComplete()
 		if ea.Timer > 3.0 {
 			ea.State = EndingStateFormingUnion
 			ea.Timer = 0
@@ -364,7 +364,7 @@ func (ea *EndingAnimation) Update(deltaTime float64) {
 			ea.Timer = 0
 		}
 	case EndingStateUnionComplete:
-		ea.updateUnionComplete(deltaTime)
+		ea.updateUnionComplete()
 		ea.State = EndingStateUnionComplete
 	case EndingStateComplete:
 		ea.State = EndingStateUnionComplete
@@ -398,7 +398,7 @@ func (ea *EndingAnimation) updateFragmentsRising(deltaTime float64) {
 	}
 }
 
-func (ea *EndingAnimation) updateFormingCrystal(deltaTime float64) {
+func (ea *EndingAnimation) updateFormingCrystal() {
 	for i := range ea.Fragments {
 		fragment := &ea.Fragments[i]
 		progress := ea.Timer / 4.0
@@ -430,7 +430,7 @@ func (ea *EndingAnimation) updateFormingCrystal(deltaTime float64) {
 	ea.ScreenShakeY = math.Sin(ea.Timer*25.0) * 0.8
 }
 
-func (ea *EndingAnimation) updateCrystalComplete(deltaTime float64) {
+func (ea *EndingAnimation) updateCrystalComplete() {
 	corePulseScale := 1.0 + math.Sin(ea.Timer*4.0)*0.15
 	outerPulseScale := 1.0 + math.Sin(ea.Timer*2.0)*0.08
 	for i := range ea.Fragments {
@@ -474,7 +474,7 @@ func (ea *EndingAnimation) updateCrystalComplete(deltaTime float64) {
 }
 
 func (ea *EndingAnimation) updateFormingUnion(deltaTime float64) {
-	ea.updateCrystalComplete(deltaTime)
+	ea.updateCrystalComplete()
 	for i := range ea.UnionFragments {
 		fragment := &ea.UnionFragments[i]
 		if fragment.DelayTimer > 0 {
@@ -496,7 +496,7 @@ func (ea *EndingAnimation) updateFormingUnion(deltaTime float64) {
 	ea.ScreenShakeY = math.Sin(ea.Timer*10.0) * 0.3 * (1.0 - ea.Timer/4.0)
 }
 
-func (ea *EndingAnimation) updateUnionComplete(deltaTime float64) {
+func (ea *EndingAnimation) updateUnionComplete() {
 	corePulseScale := 1.0 + math.Sin(ea.Timer*2.0)*0.1
 	outerPulseScale := 1.0 + math.Sin(ea.Timer*1.5)*0.05
 	for i := range ea.Fragments {

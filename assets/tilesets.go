@@ -24,10 +24,7 @@ type TileMap struct {
 }
 
 var (
-	DesertTileMap   *TileMap
-	ForestTileMap   *TileMap
-	CaveTileMap     *TileMap
-	MountainTileMap *TileMap
+	DesertTileMap *TileMap
 )
 
 func InitTileMaps() {
@@ -128,12 +125,8 @@ func renderTileLayerFromImages(mapImage *ebiten.Image, layer *tiled.Layer, gameM
 	}
 }
 
-func (tm *TileMap) Draw(screen *ebiten.Image, cameraX, cameraY, screenWidth, screenHeight float64) {
+func (tm *TileMap) Draw(screen *ebiten.Image, cameraX, cameraY float64) {
 	if tm.Image == nil {
-		return
-	}
-	if tm == MountainTileMap {
-		tm.drawTiled(screen, cameraX, cameraY, screenWidth, screenHeight)
 		return
 	}
 	op := &ebiten.DrawImageOptions{}
@@ -224,9 +217,6 @@ func (tm *TileMap) createCollisionObjects() {
 func (tm *TileMap) CheckCollision(x, y, width, height float64) bool {
 	if tm.CollisionSpace == nil {
 		return false
-	}
-	if tm == MountainTileMap {
-		return tm.checkTiledCollision(x, y, width, height)
 	}
 	checkRect := resolv.NewRectangle(x, y, width, height)
 	for _, shape := range tm.CollisionSpace.Shapes() {
@@ -379,8 +369,4 @@ func IsTileSolid(tileID uint32) bool {
 func (tm *TileMap) GetTileCollisionInfo(worldX, worldY float64) (uint32, bool) {
 	tileID := tm.GetTileAt(worldX, worldY)
 	return tileID, IsTileSolid(tileID)
-}
-
-func GetMap() *TileMap {
-	return DesertTileMap
 }

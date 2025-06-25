@@ -15,8 +15,6 @@ const (
 	ParticleTypeMadness ParticleType = iota
 	ParticleTypeGlitch
 	ParticleTypeEnergyBeam
-	ParticleTypeBloodSplatter
-	ParticleTypeSchizoBurst
 	ParticleTypeDimensionRip
 	ParticleTypeHallucinationSpark
 	ParticleTypeChaosOrb
@@ -94,7 +92,7 @@ func (ps *ParticleSystem) updateParticle(p *Particle, deltaTime float64) {
 	p.Life -= deltaTime
 	lifeRatio := p.Life / p.MaxLife
 
-	p.Alpha = uint8(200 * lifeRatio) // was 255 * lifeRatio, now max 200
+	p.Alpha = uint8(200 * lifeRatio)
 
 	p.Rotation += p.RotationSpeed * deltaTime
 
@@ -209,6 +207,7 @@ func (ps *ParticleSystem) updateParticle(p *Particle, deltaTime float64) {
 		if rand.Float64() < 0.2 && len(ps.Particles) < ps.MaxParticles-3 {
 			ps.SpawnHealingAura(p.X, p.Y)
 		}
+	default:
 	}
 
 	if p.TrailLength > 0 {

@@ -162,19 +162,6 @@ type SpriteAnimation struct {
 	Playing      bool
 }
 
-func NewSpriteAnimation(spritesheet *ebiten.Image, frameWidth, frameHeight int, frameTime float64, loop bool) *SpriteAnimation {
-	return &SpriteAnimation{
-		Spritesheet:  spritesheet,
-		FrameWidth:   frameWidth,
-		FrameHeight:  frameHeight,
-		FrameTime:    frameTime,
-		Loop:         loop,
-		CurrentFrame: 0,
-		CurrentTime:  0,
-		Playing:      true,
-	}
-}
-
 func (a *SpriteAnimation) AddFrame(row, col int) {
 	x := col * a.FrameWidth
 	y := row * a.FrameHeight
@@ -221,28 +208,10 @@ func (a *SpriteAnimation) Reset() {
 
 type AnimationState string
 
-const (
-	AnimationIdle   AnimationState = "idle"
-	AnimationWalk   AnimationState = "walk"
-	AnimationRun    AnimationState = "run"
-	AnimationJump   AnimationState = "jump"
-	AnimationAttack AnimationState = "attack"
-	AnimationDamage AnimationState = "damage"
-	AnimationDeath  AnimationState = "death"
-)
-
 type AnimationManager struct {
 	animations    map[AnimationState]*SpriteAnimation
 	currentState  AnimationState
 	previousState AnimationState
-}
-
-func NewAnimationManager() *AnimationManager {
-	return &AnimationManager{
-		animations:    make(map[AnimationState]*SpriteAnimation),
-		currentState:  AnimationIdle,
-		previousState: AnimationIdle,
-	}
 }
 
 func (am *AnimationManager) AddAnimation(state AnimationState, animation *SpriteAnimation) {
@@ -328,11 +297,11 @@ func DesertLayers() []BackgroundLayer {
 	}
 }
 
-func GetLayersByEnvironment(environment string) []BackgroundLayer {
+func GetLayersByEnvironment() []BackgroundLayer {
 	return DesertLayers()
 }
 
-func DrawBackgroundLayers(screen *ebiten.Image, layers []BackgroundLayer, cameraX, cameraY float64, screenWidth, screenHeight int) {
+func DrawBackgroundLayers(screen *ebiten.Image, layers []BackgroundLayer, cameraX, cameraY float64, screenWidth int) {
 	for _, layer := range layers {
 		if layer.Image == nil {
 			continue
