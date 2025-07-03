@@ -67,11 +67,20 @@ func (cs *CollisionSystem) IsOnGround(box CollisionBox) bool {
 	if cs.TileMap == nil {
 		return false
 	}
+
+	// Check multiple points along the bottom edge of the collision box
 	checkPositions := []CollisionBox{
-		{X: box.X, Y: box.Y + 1, Width: box.Width, Height: 3},
-		{X: box.X, Y: box.Y + 2, Width: box.Width, Height: 2},
-		{X: box.X, Y: box.Y + box.Height - 5, Width: box.Width, Height: 5},
+		// Check just below the bottom edge
+		{X: box.X, Y: box.Y + box.Height + 1, Width: box.Width, Height: 2},
+		// Check a bit further down to catch platforms
+		{X: box.X, Y: box.Y + box.Height + 2, Width: box.Width, Height: 3},
+		// Check corners specifically
+		{X: box.X, Y: box.Y + box.Height + 1, Width: 2, Height: 2},
+		{X: box.X + box.Width - 2, Y: box.Y + box.Height + 1, Width: 2, Height: 2},
+		// Check center
+		{X: box.X + box.Width/2 - 1, Y: box.Y + box.Height + 1, Width: 2, Height: 2},
 	}
+
 	for _, checkBox := range checkPositions {
 		if cs.CheckCollisionAtPoint(checkBox) {
 			return true
@@ -114,16 +123,7 @@ func (cs *CollisionSystem) SlideMovement(from, to CollisionBox) CollisionInfo {
 	if !info.HasCollision {
 		return info
 	}
-	horizontalOnly := CollisionBox{
-		X:      to.X,
-		Y:      from.Y,
-		Width:  to.Width,
-		Height: to.Height,
-	}
-	horizontalInfo := cs.CheckMovement(from, horizontalOnly)
-	if !horizontalInfo.HasCollision {
-		return horizontalInfo
-	}
+
 	verticalOnly := CollisionBox{
 		X:      from.X,
 		Y:      to.Y,
@@ -131,9 +131,31 @@ func (cs *CollisionSystem) SlideMovement(from, to CollisionBox) CollisionInfo {
 		Height: to.Height,
 	}
 	verticalInfo := cs.CheckMovement(from, verticalOnly)
-	if !verticalInfo.HasCollision {
-		return verticalInfo
+
+	horizontalOnly := CollisionBox{
+		X:      to.X,
+		Y:      from.Y,
+		Width:  to.Width,
+		Height: to.Height,
 	}
+	horizontalInfo := cs.CheckMovement(from, horizontalOnly)
+
+	if to.Y < from.Y {
+		if !verticalInfo.HasCollision {
+			return verticalInfo
+		}
+		if !horizontalInfo.HasCollision {
+			return horizontalInfo
+		}
+	} else {
+		if !horizontalInfo.HasCollision {
+			return horizontalInfo
+		}
+		if !verticalInfo.HasCollision {
+			return verticalInfo
+		}
+	}
+
 	return info
 }
 
@@ -156,4 +178,58 @@ func (cs *CollisionSystem) UpdateGameObject(obj GameObject, deltaX, deltaY float
 	if info.HasCollision {
 		obj.OnCollision(info)
 	}
+}
+
+func (cs *CollisionSystem) IsStuck(box CollisionBox) bool {
+	if cs.TileMap == nil {
+		return false
+	}
+
+	surroundingChecks := []CollisionBox{
+		{X: box.X - 1, Y: box.Y, Width: box.Width, Height: box.Height},
+		{X: box.X + 1, Y: box.Y, Width: box.Width, Height: box.Height},
+		{X: box.X, Y: box.Y - 1, Width: box.Width, Height: box.Height},
+		{X: box.X, Y: box.Y + 1, Width: box.Width, Height: box.Height},
+	}
+
+	collisionCount := 0
+	for _, checkBox := range surroundingChecks {
+		if cs.CheckCollisionAtPoint(checkBox) {
+			collisionCount++
+		}
+	}
+
+	return collisionCount >= 3
+}
+
+func (cs *CollisionSystem) FindNearestFreeSpace(box CollisionBox) (float64, float64, bool) {
+	if cs.TileMap == nil {
+		return box.X, box.Y, true
+	}
+
+	if !cs.CheckCollisionAtPoint(box) {
+		return box.X, box.Y, true
+	}
+
+	for radius := 1.0; radius <= 128.0; radius += 4.0 {
+		directions := []struct{ dx, dy float64 }{
+			{0, -1}, {1, -1}, {1, 0}, {1, 1},
+			{0, 1}, {-1, 1}, {-1, 0}, {-1, -1},
+		}
+
+		for _, dir := range directions {
+			testBox := CollisionBox{
+				X:      box.X + dir.dx*radius,
+				Y:      box.Y + dir.dy*radius,
+				Width:  box.Width,
+				Height: box.Height,
+			}
+
+			if !cs.CheckCollisionAtPoint(testBox) {
+				return testBox.X, testBox.Y, true
+			}
+		}
+	}
+
+	return box.X, box.Y, false
 }

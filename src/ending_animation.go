@@ -499,6 +499,7 @@ func (ea *EndingAnimation) updateFormingUnion(deltaTime float64) {
 func (ea *EndingAnimation) updateUnionComplete() {
 	corePulseScale := 1.0 + math.Sin(ea.Timer*2.0)*0.1
 	outerPulseScale := 1.0 + math.Sin(ea.Timer*1.5)*0.05
+
 	for i := range ea.Fragments {
 		fragment := &ea.Fragments[i]
 		crystalPoint := ea.CrystalPoints[i]
@@ -533,7 +534,6 @@ func (ea *EndingAnimation) updateUnionComplete() {
 		fragment.Color = ea.goldenHsvToRGB(0.13+hue*0.02, 1.0, 1.0)
 	}
 	ea.FadeAlpha = 0
-	ea.WhiteFlashAlpha = 0
 }
 
 func (ea *EndingAnimation) goldenHsvToRGB(h, s, v float64) color.RGBA {
